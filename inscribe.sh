@@ -1,8 +1,8 @@
 #!/bin/bash
 
-file=${1}
+file="${1}"
 shift
-fee=${1}
+fee="${1:=4}"
 shift
 
 get_unconfirmed_trx(){
@@ -10,6 +10,7 @@ get_unconfirmed_trx(){
 }
 
 #for i in $(ord wallet transactions | grep -E '\s0$' | awk '{ print $1 }' | uniq); do bitcoin-cli getrawtransaction "$i"; done
+# check aws access key: aws configure get aws_access_key_id
 
 check_confirmation(){
     txid=$1
@@ -35,6 +36,29 @@ check_balance(){
 }
 
 
+fetch_json_log(){
+    aws s3 cp s3://hydren.io/inscribed/${inscribe_log} .
+}
+
+prep_json_to_log(){
+    sed -i '/\]/d' ${inscribe_log} # Strip trailing ]
+    echo "," >> ${inscribe_log}
+}
+
+close_json_file(){
+    echo "]" >> ${inscribe_log}
+    ## jq . ${inscribe_log} | sponge ${inscribe_log} # beautify
+}
+
+send_file_to_aws(){  # ORIGINAL_NAME  TARGET_NAME
+    aws s3 cp "${1}" s3://hydren.io/inscribed/${2:=$1}
+}
+
+get_aws_url(){
+    #potentially add a direct reference for the file
+    aws s3 presign s3://hydren.io/inscribed/${1} --expires-in 604800  #1 week
+}    
+
 tmp_file=tmp_out.txt
 confirm_file=confirmations.txt
 inscribe_log=inscribe_log.txt
@@ -42,23 +66,32 @@ inscribe_log=inscribe_log.txt
 mkdir "./done" 2> /dev/null
 
 check_balance
-echo "proceeding with ${file} and a fee rate of ${fee:=4}"
+echo "proceeding with ${file} and a fee rate of ${fee}"
 
-ord wallet inscribe ${file} --fee-rate ${fee:=4} &> $tmp_file
+ord wallet inscribe ${file} --fee-rate ${fee} &> $tmp_file
 ord_success=$?
 
 if [[ ${ord_success} -eq 0 ]]; then
     confirmation=$(cat ${tmp_file}  | jq -r '.commit')
-    cat ${tmp_file} | jq '. + {"filename": "${file}"}' | jq '. + {"fee_rate": "${fee:=4}"}'  >> ${inscribe_log}
-    rm ${tmp_file}
-    echo "Confirmation: ${confirmation}"
-    echo "${confirmation}  ${file}" >> ${confirm_file}
+    inscription=$(cat ${tmp_file} | jq -r '.inscription')
+    inscr_url=https://ordinals.com/inscription/$inscription
+    echo "Confirmation: http://mempool.space/tx/${confirmation}"
+    
     # check_confirmation ${confirmation}
-    mv "${file}" ./done/
-    aws s3 cp ${inscrobe_log}  s3://hydren.io
+    send_file_to_aws "${file}" "${inscription}_${file}" && mv "${file}" ./done/${inscription}_${file}
+    aws_url=$(get_aws_url "${inscription}_${file}")
+    fetch_json_log # download from aws to append
+    prep_json_to_log   
+    cat ${tmp_file} | jq --arg file "$file"  '. + {"filename": $file}' | \
+	    jq --arg fee "$fee" '. + {"fee_rate": $fee}' | \
+	    jq --arg aws_url "$aws_url" '. + {"aws_url": $aws_url}' | \
+	    jq --arg explorer "$inscr_url" '. + {"explorer": $explorer}' >> ${inscribe_log}
+    close_json_file
+    send_file_to_aws "${inscribe_log}" "${inscribe_log}" 
 else
-    echo "Unsuccessful command!"
+    echo "Unsuccessful inscription!"
     echo "${tmp_file}"
 fi
 
 
+rm "${tmp_file}"
