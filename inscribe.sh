@@ -61,7 +61,7 @@ get_aws_url(){
 
 tmp_file=tmp_out.txt
 confirm_file=confirmations.txt
-inscribe_log=inscribe_log.txt
+inscribe_log=inscribe_log.json
 
 mkdir "./done" 2> /dev/null
 
@@ -90,7 +90,7 @@ if [[ ${ord_success} -eq 0 ]]; then
     send_file_to_aws "${inscribe_log}" "${inscribe_log}" 
 else
     echo "Unsuccessful inscription!"
-    echo "$(cat tmp_file)"
+    echo "$(cat $tmp_file)"
 fi
 
 
