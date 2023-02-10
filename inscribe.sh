@@ -90,7 +90,7 @@ if [[ ${ord_success} -eq 0 ]]; then
     send_file_to_aws "${inscribe_log}" "${inscribe_log}" 
 else
     echo "Unsuccessful inscription!"
-    echo "${tmp_file}"
+    echo "$(cat tmp_file)"
 fi
 
 
