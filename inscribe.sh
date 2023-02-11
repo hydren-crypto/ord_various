@@ -93,9 +93,13 @@ fee_rate=$fee_rate_1440
 aws_s3_uri=s3://hydren.io
 aws_s3_dir=inscribed
 ord_description=""
+skipcheck=false
 
 while [[ $1 =~ ^- ]]; do
     case $1 in
+        "--skip"|"--s")
+            skipcheck=true
+            ;;
         "--fee"|"-f")
             shift
             fee_rate=$1
@@ -103,9 +107,6 @@ while [[ $1 =~ ^- ]]; do
         "--description"|"-d")
             shift
             ord_description=$1
-            ;;
-        "--check"|"-c")
-            CHECKONLY=true
             ;;
         *)
             echo "Unknown option $1"
@@ -134,7 +135,7 @@ check_balance
 
 echo "Proceeding with a fee rate of ${fee_rate}"
 display_fee_rates
-read -p "Press enter to continue..."
+[[ "$skipcheck" = true ]] || read -p "Press enter to continue..."
 
 
 ord wallet inscribe ${cmdline_filename} --fee-rate ${fee_rate} &> $tmp_file
