@@ -72,7 +72,7 @@ tmp_file=tmp_out.txt
 confirm_file=confirmations.txt
 inscribe_log=inscribe_log.json
 fee_rate=4
-aws_s2_uri=s3://hydren.io/inscribed
+aws_s3_uri=s3://hydren.io/inscribed
 
 while [[ $1 =~ ^- ]]; do
     case $1 in
