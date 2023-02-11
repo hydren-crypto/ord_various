@@ -40,6 +40,7 @@ check_confirmation(){
 }
 
 check_balance(){
+    echo "checking wallet balance and syncing index if needed..."
     wallet_balance=$(ord wallet balance)
     if [ "$wallet_balance" -gt 0 ]; then
         echo "Balance is greater than 0"
