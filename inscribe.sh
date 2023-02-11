@@ -88,6 +88,7 @@ tmp_file=tmp_out.txt
 inscribe_log=inscribe_log.json
 fee_rate=$fee_rate_1440
 aws_s3_uri=s3://hydren.io/inscribed
+ord_description=""
 
 while [[ $1 =~ ^- ]]; do
     case $1 in
