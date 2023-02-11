@@ -42,10 +42,8 @@ check_confirmation(){
 check_balance(){
     echo "checking wallet balance and syncing index if needed..."
     wallet_balance=$(ord wallet balance)
-    if [ "$wallet_balance" -gt 0 ]; then
-        echo "Balance is greater than 0"
-    else 
-        echo "Balance is not greater than 0"
+    if [ "$wallet_balance" -eq 0 ]; then
+        echo "insufficient balance to inscribe. Bye! "
         exit
     fi
 }
