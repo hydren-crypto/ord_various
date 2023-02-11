@@ -161,7 +161,7 @@ if [[ ${ord_success} -eq 0 ]]; then
         jq --arg filesize "$filesize" '. + {"filesize": $filesize}' >> ${inscribe_log}
     close_json_file
     send_file_to_aws "${inscribe_log}" "${inscribe_log}"
-    aws cloudfront create-invalidation --distribution-id "${CLOUDFRONT_ID}" --paths /inscribed/inscribe_log.json
+    aws cloudfront create-invalidation --distribution-id "${CLOUDFRONT_ID}" --paths /${aws_s3_dir}/${inscribe_log}
 else
     echo "Unsuccessful inscription!"
     echo "$(cat $tmp_file)"
