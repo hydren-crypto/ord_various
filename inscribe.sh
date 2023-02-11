@@ -79,7 +79,7 @@ usage(){
     echo "USAGE: $0 -f [fee rate] -d [description] FILENAME"
     echo ""
     echo " -f   | fee rate [default: ${fee_rate}]"
-    echo " -d   | description [detault: filename prefix] - identifier in JSON output"
+    echo " -d   | description [detault: filename-prefix] - identifier in JSON output"
     echo ""
     display_fee_rates
     exit 0
@@ -161,7 +161,7 @@ if [[ ${ord_success} -eq 0 ]]; then
         jq --arg filesize "$filesize" '. + {"filesize": $filesize}' >> ${inscribe_log}
     close_json_file
     send_file_to_aws "${inscribe_log}" "${inscribe_log}"
-    aws cloudfront create-invalidation --distribution-id "${CLOUDFRONT_ID}" --paths /${aws_s3_dir}/${inscribe_log}
+    aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_ID" --paths /${aws_s3_dir}/${inscribe_log}
 else
     echo "Unsuccessful inscription!"
     echo "$(cat $tmp_file)"
