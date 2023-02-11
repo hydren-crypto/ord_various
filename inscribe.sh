@@ -142,7 +142,7 @@ ord wallet inscribe ${cmdline_filename} --fee-rate ${fee_rate} &> $tmp_file
 ord_success=$?
 
 if [[ ${ord_success} -eq 0 ]]; then
-    $filesize=$(stat -c%s ${cmdline_filename})
+    filesize=$(stat -c%s ${cmdline_filename})
     confirmation=$(cat ${tmp_file}  | jq -r '.commit')
     inscription=$(cat ${tmp_file} | jq -r '.inscription')
     inscr_url=https://ordinals.com/inscription/$inscription
@@ -161,7 +161,7 @@ if [[ ${ord_success} -eq 0 ]]; then
         jq --arg filesize "$filesize" '. + {"filesize": $filesize}' >> ${inscribe_log}
     close_json_file
     send_file_to_aws "${inscribe_log}" "${inscribe_log}"
-    create-invalidation --distribution-id $CLOUDFRONT_ID --paths /${aws_s3_dir}/${inscribe_log}
+    aws cloudfront create-invalidation --distribution-id "${CLOUDFRONT_ID}" --paths /inscribed/inscribe_log.json
 else
     echo "Unsuccessful inscription!"
     echo "$(cat $tmp_file)"
