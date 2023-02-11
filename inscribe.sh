@@ -49,7 +49,7 @@ check_balance(){
 }
 
 fetch_json_log(){
-    aws s3 cp "${aws_s3_uri}"/${inscribe_log} .
+    aws s3 cp "${aws_s3_uri}"/"${aws_s3_dir}"/${inscribe_log} .
 }
 
 prep_json_to_log(){
@@ -63,12 +63,16 @@ close_json_file(){
 }
 
 send_file_to_aws(){  # ORIGINAL_NAME  TARGET_NAME
-    aws s3 cp "${1}" "${aws_s3_uri}"/${2:=$1}
+    aws s3 cp "${1}" "${aws_s3_uri}"/"${aws_s3_dir}"/${2:=$1}
+}
+
+invalidate_s3_file(){
+    aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_ID --paths "{$1}"
 }
 
 get_aws_url(){
     #potentially add a direct reference for the file
-    aws s3 presign "${aws_s3_uri}"/${1} --expires-in 604800  #1 week
+    aws s3 presign "${aws_s3_uri}"/"${aws_s3_dir}"/${1} --expires-in 604800  #1 week
 } 
 
 usage(){
@@ -86,7 +90,8 @@ get_fee_rates
 tmp_file=tmp_out.txt
 inscribe_log=inscribe_log.json
 fee_rate=$fee_rate_1440
-aws_s3_uri=s3://hydren.io/inscribed
+aws_s3_uri=s3://hydren.io
+aws_s3_dir=inscribed
 ord_description=""
 
 while [[ $1 =~ ^- ]]; do
@@ -141,13 +146,14 @@ if [[ ${ord_success} -eq 0 ]]; then
     aws_url=$(get_aws_url "${inscription}_${cmdline_filename}")
     fetch_json_log # download from aws to append
     prep_json_to_log   
-    cat ${tmp_file} | jq --arg file "$cmdline_filename"  '. + {"filename": $cmdline_filename}' | \
+    cat ${tmp_file} | jq --arg file "$cmdline_filename"  '. + {"filename": $file}' | \
         jq --arg fee_rate "$fee_rate" '. + {"fee_rate": $fee_rate}' | \
         jq --arg aws_url "$aws_url" '. + {"aws_url": $aws_url}' | \
         jq --arg explorer "$inscr_url" '. + {"explorer": $explorer}' | \
         jq --arg description "$ord_description" '. + {"description": $description}' >> ${inscribe_log}
     close_json_file
-    send_file_to_aws "${inscribe_log}" "${inscribe_log}" 
+    send_file_to_aws "${inscribe_log}" "${inscribe_log}"
+    create-invalidation --distribution-id $CLOUDFRONT_ID --paths /${aws_s3_dir}/${inscribe_log}
 else
     echo "Unsuccessful inscription!"
     echo "$(cat $tmp_file)"
