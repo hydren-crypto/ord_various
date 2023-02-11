@@ -81,7 +81,6 @@ usage(){
     exit 0
 }
 
-check_balance
 get_fee_rates
 
 tmp_file=tmp_out.txt
@@ -121,6 +120,7 @@ shift
 
 mkdir "./done" 2> /dev/null
 
+check_balance
 
 echo "Proceeding with a fee rate of ${fee_rate}"
 display_fee_rates
