@@ -123,6 +123,11 @@ fi
 cmdline_filename=$1
 shift
 
+root_filename=${cmdline_filename%.*}
+if [ -z "$ord_description" ]; then
+  ord_description="$root_filename"
+fi
+
 mkdir "./done" 2> /dev/null
 
 check_balance
