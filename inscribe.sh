@@ -78,8 +78,8 @@ get_aws_url(){
 usage(){
     echo "USAGE: $0 -f [fee rate] -d [description] FILENAME"
     echo ""
-    echo " -f   | fee rate [ default: ${fee_rate}]"
-    echo " -d   | description - used for an identifier in the JSON output"
+    echo " -f   | fee rate [default: ${fee_rate}]"
+    echo " -d   | description [detault: filename prefix] - identifier in JSON output"
     echo ""
     display_fee_rates
     exit 0
