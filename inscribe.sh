@@ -79,7 +79,7 @@ usage(){
     echo "USAGE: $0 -f [fee rate] -d [description] FILENAME"
     echo ""
     echo " -f   | fee rate [default: ${fee_rate}]"
-    echo " -d   | description [detault: filename prefix] - identifier in JSON output"
+    echo " -d   | description [detault: filename-prefix] - identifier in JSON output"
     echo ""
     display_fee_rates
     exit 0
@@ -93,9 +93,13 @@ fee_rate=$fee_rate_1440
 aws_s3_uri=s3://hydren.io
 aws_s3_dir=inscribed
 ord_description=""
+skipcheck=false
 
 while [[ $1 =~ ^- ]]; do
     case $1 in
+        "--skip"|"--s")
+            skipcheck=true
+            ;;
         "--fee"|"-f")
             shift
             fee_rate=$1
@@ -103,9 +107,6 @@ while [[ $1 =~ ^- ]]; do
         "--description"|"-d")
             shift
             ord_description=$1
-            ;;
-        "--check"|"-c")
-            CHECKONLY=true
             ;;
         *)
             echo "Unknown option $1"
@@ -134,14 +135,14 @@ check_balance
 
 echo "Proceeding with a fee rate of ${fee_rate}"
 display_fee_rates
-read -p "Press enter to continue..."
+[ "$skipcheck" = true ] || read -p "Press enter to continue..."
 
 
 ord wallet inscribe ${cmdline_filename} --fee-rate ${fee_rate} &> $tmp_file
 ord_success=$?
 
 if [[ ${ord_success} -eq 0 ]]; then
-    $filesize=$(stat -c%s ${cmdline_filename})
+    filesize=$(stat -c%s ${cmdline_filename})
     confirmation=$(cat ${tmp_file}  | jq -r '.commit')
     inscription=$(cat ${tmp_file} | jq -r '.inscription')
     inscr_url=https://ordinals.com/inscription/$inscription
@@ -160,7 +161,7 @@ if [[ ${ord_success} -eq 0 ]]; then
         jq --arg filesize "$filesize" '. + {"filesize": $filesize}' >> ${inscribe_log}
     close_json_file
     send_file_to_aws "${inscribe_log}" "${inscribe_log}"
-    create-invalidation --distribution-id $CLOUDFRONT_ID --paths /${aws_s3_dir}/${inscribe_log}
+    aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_ID" --paths /${aws_s3_dir}/${inscribe_log}
 else
     echo "Unsuccessful inscription!"
     echo "$(cat $tmp_file)"
