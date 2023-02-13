@@ -135,7 +135,7 @@ check_balance
 
 echo "Proceeding with a fee rate of ${fee_rate}"
 display_fee_rates
-[[ "$skipcheck" = true ]] || read -p "Press enter to continue..."
+[ "$skipcheck" = true ] || read -p "Press enter to continue..."
 
 
 ord wallet inscribe ${cmdline_filename} --fee-rate ${fee_rate} &> $tmp_file
