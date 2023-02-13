@@ -11,7 +11,8 @@ get_address(){
 
 inscription_id=$1
 ordsea_create_api="https://ordsea.io/api/create"
-get_address
+
+get_address "$inscription_id"
 proof=$(bitcoin-cli signmessage "$address" "$inscription_id 0")
 contact="@mrarwyn"
 price="0.42"
