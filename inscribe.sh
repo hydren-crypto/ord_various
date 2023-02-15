@@ -78,8 +78,9 @@ get_aws_url(){
 usage(){
     echo "USAGE: $0 -f [fee rate] -d [description] FILENAME"
     echo ""
-    echo " -f   | fee rate [default: ${fee_rate}]"
     echo " -d   | description [detault: filename-prefix] - identifier in JSON output"
+    echo " -f   | fee rate [default: ${fee_rate}]"
+    echo " -s   | skip confirmation check"
     echo ""
     display_fee_rates
     exit 0
@@ -97,16 +98,16 @@ skipcheck=false
 
 while [[ $1 =~ ^- ]]; do
     case $1 in
-        "--skip"|"--s")
-            skipcheck=true
+        "--description"|"-d")
+            shift
+            ord_description=$1
             ;;
         "--fee"|"-f")
             shift
             fee_rate=$1
             ;;
-        "--description"|"-d")
-            shift
-            ord_description=$1
+        "--skip"|"-s")
+            skipcheck=true
             ;;
         *)
             echo "Unknown option $1"
@@ -135,7 +136,7 @@ check_balance
 
 echo "Proceeding with a fee rate of ${fee_rate}"
 display_fee_rates
-[ "$skipcheck" = true ] || read -p "Press enter to continue..."
+[ "$skipcheck" = true ] || read -p "Press enter to continue...";
 
 
 ord wallet inscribe ${cmdline_filename} --fee-rate ${fee_rate} &> $tmp_file
