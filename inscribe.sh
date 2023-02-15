@@ -76,13 +76,11 @@ get_aws_url(){
 } 
 
 usage(){
-    echo "USAGE: $0 -f [fee rate] -d [description] FILENAME"
-    echo ""
-    echo " -d   | description [detault: filename-prefix] - identifier in JSON output"
-    echo " -f   | fee rate [default: ${fee_rate}]"
-    echo " -s   | skip confirmation check"
-    echo ""
-    display_fee_rates
+    echo "Usage: $0 [--description|-d] [--fee|-f] [--skip|-s] FILENAME"
+    echo "  --description|-d: description of the file"
+    echo "  --fee|-f: fee rate to use (default: $fee_rate)"
+    echo "  --skip|-s: skip confirmation check"
+    echo "  FILENAME: file to inscribe"
     exit 0
 }
 
@@ -124,6 +122,11 @@ fi
 
 cmdline_filename=$1
 shift
+
+if [ ! -f "$cmdline_filename" ]; then
+    echo "File $cmdline_filename does not exist"
+    exit 1
+fi
 
 root_filename=${cmdline_filename%.*}
 if [ -z "$ord_description" ]; then
