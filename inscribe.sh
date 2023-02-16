@@ -18,6 +18,7 @@ get_fee_rates(){
     # see: https://bitcoiner.live/doc/api
     fee_rate_1440=$(curl -s https://bitcoiner.live/api/fees/estimates/latest | jq '.estimates."1440".sat_per_vbyte')
     fee_rate_120=$(curl -s https://bitcoiner.live/api/fees/estimates/latest | jq '.estimates."120".sat_per_vbyte')
+    btc_price_usd=$(curl -s 'https://api.coindesk.com/v1/bpi/currentprice/USD.json' | jq '.bpi.USD.rate_float')
 }
 
 display_fee_rates(){
@@ -154,8 +155,15 @@ fi
 mkdir "./done" 2> /dev/null
 
 
-echo "Proceeding with a fee rate of ${fee_rate}"
 display_fee_rates
+echo "Proceeding with a fee rate of ${fee_rate}"
+filesize=$(stat -c%s ${cmdline_filename})
+btc_cost=$(echo "scale=8; (($filesize) / 4 * $fee_rate) * 0.00000001" | bc)
+echo "Filesize: $filesize"
+echo "BTC COST: $btc_cost"
+usd_cost=$(echo "scale=8; $btc_cost * $btc_price_usd" | bc)
+echo "USD COST: $usd_cost"
+
 [ "$skipcheck" = true ] || read -p "Press enter to continue...";
 
 
@@ -163,7 +171,6 @@ ord wallet inscribe ${cmdline_filename} --fee-rate ${fee_rate} &> $tmp_file
 ord_success=$?
 
 if [[ ${ord_success} -eq 0 ]]; then
-    filesize=$(stat -c%s ${cmdline_filename})
     confirmation=$(cat ${tmp_file}  | jq -r '.commit')
     inscription=$(cat ${tmp_file} | jq -r '.inscription')
     inscr_url=https://ordinals.com/inscription/$inscription
