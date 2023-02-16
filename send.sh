@@ -17,6 +17,7 @@ display_fee_rates(){
 
 usage(){
     echo "Usage: $0 [--fee|-f <fee_rate>] [--skip|-s] <to_address> <inscription>"
+    echo "  --description|-d <description> - description of send"
     echo "  --fee|-f <fee_rate>  - fee rate to use (default: $fee_rate)"
     echo "  --skip|-s            - skip confirmation"
     echo "  <to_address>         - address to send to"
