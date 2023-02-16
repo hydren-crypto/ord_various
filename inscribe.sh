@@ -111,7 +111,7 @@ skipcheck=false
 
 while [[ $1 =~ ^- ]]; do
     case $1 in
-	"--check-fee"|"-cf")
+	    "--check-fee"|"-cf")
             display_fee_rates
 	    exit 0
 	    ;;
