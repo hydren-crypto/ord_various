@@ -74,18 +74,22 @@ display_fee_rates
 [ "$skipcheck" = true ] || read -p "Press enter to continue...";
 
 
-confirmation=$(ord --wallet $wallet_name --fee-rate $fee_rate walelt send $to_address $inscription 2>&1)
+confirmation=$(ord --wallet $wallet_name wallet send $to_address $inscription --fee-rate $fee_rate 2>&1)
 send_status=$?
 if [[ $send_status -eq 0 ]]; then
     echo "Successful confirmation: $confirmation"
     # jq --arg inscription "$inscription" '.[] | select(.inscription == $inscription)' $inscribe_log
     echo "Updating $inscribe_log with confirmation"
-    jq --arg inscription "$inscription" --arg confirmation "$confirmation" '.[] | select(.inscription == $inscription) |= . + {status: ("sent-" + $confirmation)}' $inscribe_log > $tmp_file
-    mv $tmp_file $inscribe_log
+    success_status="sent-$confirmation-to-$to_address"
+    jq --arg inscription "$inscription" --arg success_status "$success_status" 'map(if .inscription == $inscription then .status = $uccess_status else . end)' $inscribe_log > $tmp_file
+#    mv $tmp_file $inscribe_log
 else
     echo "Adding failure message to $inscribe_log"
-    jq --arg inscription "$inscription" --arg confirmation "$confirmation" '.[] | select(.inscription == $inscription) |= . + {status: ("failed-send-" + $confirmation)}' $inscribe_log > $tmp_file
-    mb $tmp_file $inscribe_log
+    failed_status="failed-send-$confirmation"
+    echo "$confirmation"
+    jq --arg inscription "$inscription" --arg failed_status "$failed_status" 'map(if .inscription == $inscription then .status = $failed_status else . end)' $inscribe_log > $tmp_file
+#    mv $tmp_file $inscribe_log
 fi
 
-rm "${tmp_file}"
+echo "THIS IS TESTING - SEE $tmp_file and copy to $inscribe_log manually if good" 
+#rm "${tmp_file}"
