@@ -31,9 +31,14 @@ inscribe_log=inscribe_log.json
 fee_rate=$fee_rate_1440
 skipcheck=false
 wallet_name=ord
+send_description=_
 
 while [[ $1 =~ ^- ]]; do
     case $1 in
+       "--description"|"-d")
+            shift
+            send_description=$1
+            ;;
         "--fee"|"-f")
             shift
             fee_rate=$1
@@ -80,12 +85,12 @@ if [[ $send_status -eq 0 ]]; then
     echo "Successful confirmation: $confirmation"
     # jq --arg inscription "$inscription" '.[] | select(.inscription == $inscription)' $inscribe_log
     echo "Updating $inscribe_log with confirmation"
-    success_status="sent-$confirmation-to-$to_address"
+    success_status="sent-$send_description-$confirmation-to-$to_address"
     jq --arg inscription "$inscription" --arg success_status "$success_status" 'map(if .inscription == $inscription then .status = $success_status else . end)' $inscribe_log > $tmp_file
 #    mv $tmp_file $inscribe_log
 else
     echo "Adding failure message to $inscribe_log"
-    failed_status="failed-send-$confirmation"
+    failed_status="failed-send-$send_description-$confirmation"
     echo "$confirmation"
     jq --arg inscription "$inscription" --arg failed_status "$failed_status" 'map(if .inscription == $inscription then .status = $failed_status else . end)' $inscribe_log > $tmp_file
 #    mv $tmp_file $inscribe_log
