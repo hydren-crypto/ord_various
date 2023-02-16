@@ -39,13 +39,18 @@ check_confirmation(){
     done
 }
 
-check_balance(){
+check_balance(){ 
     echo "checking wallet balance and syncing index if needed..."
     wallet_balance=$(ord wallet balance)
+    wallet_balance_btc=$(echo "$wallet_balance * 0.00000001" | bc)
     if [ "$wallet_balance" -eq 0 ]; then
         echo "insufficient balance to inscribe. Bye! "
         exit
     fi
+}
+
+check_bitcoin_cli_balance(){
+    bcli_balance=$(bitcoin-cli -getinfo | grep "Balance:" | awk '{print $2}')
 }
 
 fetch_json_log(){
@@ -83,10 +88,17 @@ usage(){
     echo "  FILENAME: file to inscribe"
     echo ""
     display_fee_rates
+    echo ""
+    echo "ord wallet balance BTC: $wallet_balance_btc"
+    echo "ord wallet balance SAT: $wallet_balance"
+    echo "bitcoin-cli balance: $bcli_balance"
+    echo ""
     exit 0
 }
 
 get_fee_rates
+check_balance
+check_bitcoin_cli_balance
 
 tmp_file=tmp_out.txt
 inscribe_log=inscribe_log.json
@@ -141,7 +153,6 @@ fi
 
 mkdir "./done" 2> /dev/null
 
-check_balance
 
 echo "Proceeding with a fee rate of ${fee_rate}"
 display_fee_rates
