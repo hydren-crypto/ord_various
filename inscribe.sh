@@ -181,12 +181,15 @@ if [[ ${ord_success} -eq 0 ]]; then
     aws_url=$(get_aws_url "${inscription}_${cmdline_filename}")
     fetch_json_log # download from aws to append
     prep_json_to_log   
+    time_now=$(date +"%Y%m%d_%H:%M")UTC
+    status="inscribed-${time_now}"
     cat ${tmp_file} | jq --arg file "$cmdline_filename"  '. + {"filename": $file}' | \
         jq --arg fee_rate "$fee_rate" '. + {"fee_rate": $fee_rate}' | \
         jq --arg aws_url "$aws_url" '. + {"aws_url": $aws_url}' | \
         jq --arg explorer "$inscr_url" '. + {"explorer": $explorer}' | \
         jq --arg description "$ord_description" '. + {"description": $description}' | \
-        jq --arg filesize "$filesize" '. + {"filesize": $filesize}' >> ${inscribe_log}
+        jq --arg filesize "$filesize" '. + {"filesize": $filesize}' | \ 
+        jq --arg status "$status" '. + {"status": $status}' >> ${inscribe_log}
     close_json_file
     send_file_to_aws "${inscribe_log}" "${inscribe_log}"
     aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_ID" --paths /${aws_s3_dir}/${inscribe_log}
