@@ -81,7 +81,7 @@ if [[ $send_status -eq 0 ]]; then
     # jq --arg inscription "$inscription" '.[] | select(.inscription == $inscription)' $inscribe_log
     echo "Updating $inscribe_log with confirmation"
     success_status="sent-$confirmation-to-$to_address"
-    jq --arg inscription "$inscription" --arg success_status "$success_status" 'map(if .inscription == $inscription then .status = $uccess_status else . end)' $inscribe_log > $tmp_file
+    jq --arg inscription "$inscription" --arg success_status "$success_status" 'map(if .inscription == $inscription then .status = $success_status else . end)' $inscribe_log > $tmp_file
 #    mv $tmp_file $inscribe_log
 else
     echo "Adding failure message to $inscribe_log"
