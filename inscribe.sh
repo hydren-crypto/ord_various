@@ -81,6 +81,8 @@ usage(){
     echo "  --fee|-f: fee rate to use (default: $fee_rate)"
     echo "  --skip|-s: skip confirmation check"
     echo "  FILENAME: file to inscribe"
+    echo ""
+    display_fee_rates
     exit 0
 }
 
@@ -96,6 +98,10 @@ skipcheck=false
 
 while [[ $1 =~ ^- ]]; do
     case $1 in
+	"--check-fee"|"-cf")
+            display_fee_rates
+	    exit 0
+	    ;;
         "--description"|"-d")
             shift
             ord_description=$1
