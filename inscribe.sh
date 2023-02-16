@@ -188,7 +188,7 @@ if [[ ${ord_success} -eq 0 ]]; then
         jq --arg aws_url "$aws_url" '. + {"aws_url": $aws_url}' | \
         jq --arg explorer "$inscr_url" '. + {"explorer": $explorer}' | \
         jq --arg description "$ord_description" '. + {"description": $description}' | \
-        jq --arg filesize "$filesize" '. + {"filesize": $filesize}' | \ 
+        jq --arg filesize "$filesize" '. + {"filesize": $filesize}' | \
         jq --arg status "$status" '. + {"status": $status}' >> ${inscribe_log}
     close_json_file
     send_file_to_aws "${inscribe_log}" "${inscribe_log}"
