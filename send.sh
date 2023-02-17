@@ -27,7 +27,7 @@ usage(){
 
 get_fee_rates
 
-tmp_file=tmp_send_out.txt
+tmp_file=tmp_send_out.json
 inscribe_log=inscribe_log.json
 fee_rate=$fee_rate_1440
 skipcheck=false
@@ -87,15 +87,33 @@ if [[ $send_status -eq 0 ]]; then
     # jq --arg inscription "$inscription" '.[] | select(.inscription == $inscription)' $inscribe_log
     echo "Updating $inscribe_log with confirmation"
     success_status="sent-$send_description-$confirmation-to-$to_address"
-    jq --arg inscription "$inscription" --arg success_status "$success_status" 'map(if .inscription == $inscription then .status = $success_status else . end)' $inscribe_log > $tmp_file
-#    mv $tmp_file $inscribe_log
+    # the following over-writes the status field
+    # jq --arg inscription "$inscription" --arg success_status "$success_status" 'map(if .inscription == $inscription then .status = $success_status else . end)' $inscribe_log > $tmp_file
+    # the following will append to the status field
+    jq --arg inscription "$inscription" --arg success_status "$success_status" 'map(if .inscription == $inscription then .status |= . + "\n" + $success_status else . end)' $inscribe_log > $tmp_file
 else
     echo "Adding failure message to $inscribe_log"
     failed_status="failed-send-$send_description-$confirmation"
     echo "$confirmation"
-    jq --arg inscription "$inscription" --arg failed_status "$failed_status" 'map(if .inscription == $inscription then .status = $failed_status else . end)' $inscribe_log > $tmp_file
-#    mv $tmp_file $inscribe_log
+    #jq --arg inscription "$inscription" --arg failed_status "$failed_status" 'map(if .inscription == $inscription then .status = $failed_status else . end)' $inscribe_log > $tmp_file
+    jq --arg inscription "$inscription" --arg failed_status "$failed_status" 'map(if .inscription == $inscription then .status |= . + "\n" + $failed_status else . end)' $inscribe_log > $tmp_file
+
 fi
 
-echo "THIS IS TESTING - SEE $tmp_file and copy to $inscribe_log manually if good" 
+which jsonlint > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+    echo "Error: jsonlint is not installed on this system. Install python3-demjson to validate the json file"
+    echo "we will still move the file to $tmp_file to $inscribe_log"
+else
+    jsonlint $tmp_file > /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        echo "Error in JSON file"
+        echo "Please review $tmp_file - we have preserved $inscribe_log"
+        exit 1
+    fi
+fi
+
+echo "THIS IS TESTING - $tmp_file has been preserved for review" 
+
+mv $tmp_file $inscribe_log
 #rm "${tmp_file}"
