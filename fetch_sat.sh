@@ -18,6 +18,9 @@ inscribe_log=inscribe_log.json
 for inscription in $(jq -r '.[] | .inscription' $inscribe_log); do
     fetch_sat $inscription
     echo "sat: $sat - inscription: $inscription"
+    if [ -z "$sat" ]; then
+        sat="unknown-or-pending-inscription"
+    fi
     jq --arg inscription "$inscription" --arg sat "$sat" 'map(if .inscription == $inscription then .sat = $sat else .sat = "unknown" end)' $inscribe_log > $tmp_file
 done
 
