@@ -179,7 +179,12 @@ if [[ ${ord_success} -eq 0 ]]; then
     # check_confirmation ${confirmation}
     send_file_to_aws "${cmdline_filename}" "${inscription}_${cmdline_filename}" && mv "${cmdline_filename}" ./done/${inscription}_${cmdline_filename}
     aws_url=$(get_aws_url "${inscription}_${cmdline_filename}")
-    fetch_json_log # download from aws to append
+    if [ -f ${inscribe_log} ]; then
+        echo "Appending to existing $inscribe_log in current directory"
+    else
+       echo "Fetching log from aws"
+       fetch_json_log # download from aws to append
+    fi
     prep_json_to_log   
     time_now=$(date +"%Y%m%d_%H:%M")UTC
     status="inscribed-${time_now}"
