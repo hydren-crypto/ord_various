@@ -27,6 +27,11 @@ for inscription in $(jq -r '.[] | .inscription' $inscribe_log); do
     if [ -z "$filename" ]; then
         filename="unknown"
     fi
+    description=$(ls ./done/ | grep $inscription |  cut -d_ -f2- | cut -d. -f1)
+    if [ -z "$description" ]; then
+        description="unknown"
+    fi
+
     if [ -z "$sat" ] && [ -z "$inscription_id" ]; then
         echo "inscription: $inscription - no value yet for sat and inscription_id - skipping"
         jq --arg inscription "$inscription" '.[] | select(.inscription == $inscription)' $inscribe_log >> $tmp_file
