@@ -38,8 +38,8 @@ for inscription in $(jq -r '.[] | .inscription' $inscribe_log); do
     else
         echo "inscription: $inscription - sat: $sat - inscription_id: $inscription_id "
         # if the keys exist they will not be overwritten
-        jq --arg inscription "$inscription" --arg sat "$sat" --arg inscription_id "$inscription_id" --arg filename "$filename" \
-            '.[] | select(.inscription == $inscription) | . + {sat: $sat, inscription_id: $inscription_id, filename: $filename}' $inscribe_log >> $tmp_file
+        jq --arg inscription "$inscription" --arg sat "$sat" --arg inscription_id "$inscription_id" --arg filename "$filename" --arg description "$description" \
+            '.[] | select(.inscription == $inscription) | . + {sat: $sat, inscription_id: $inscription_id, filename: $filename, description: $description}' $inscribe_log >> $tmp_file
     fi
     # Check if $inscription is equal to the last element in the loop
     if [ "$inscription" == "$last_inscription" ]; then
