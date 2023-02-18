@@ -23,14 +23,18 @@ echo "[" > $tmp_file
 
 for inscription in $(jq -r '.[] | .inscription' $inscribe_log); do
     fetch_sat $inscription
-
+    filename=$(ls ./done/ | grep $inscription |  cut -d_ -f2)
+    if [ -z "$filename" ]; then
+        filename="unknown"
+    fi
     if [ -z "$sat" ] && [ -z "$inscription_id" ]; then
         echo "inscription: $inscription - no value yet for sat and inscription_id - skipping"
         jq --arg inscription "$inscription" '.[] | select(.inscription == $inscription)' $inscribe_log >> $tmp_file
     else
         echo "inscription: $inscription - sat: $sat - inscription_id: $inscription_id "
-        jq --arg inscription "$inscription" --arg sat "$sat" --arg inscription_id "$inscription_id" \
-            '.[] | select(.inscription == $inscription) | . + {sat: $sat, inscription_id: $inscription_id}' $inscribe_log >> $tmp_file
+        # if the keys exist they will not be overwritten
+        jq --arg inscription "$inscription" --arg sat "$sat" --arg inscription_id "$inscription_id" --arg filename "$filename" \
+            '.[] | select(.inscription == $inscription) | . + {sat: $sat, inscription_id: $inscription_id, filename: $filename}' $inscribe_log >> $tmp_file
     fi
     # Check if $inscription is equal to the last element in the loop
     if [ "$inscription" == "$last_inscription" ]; then
