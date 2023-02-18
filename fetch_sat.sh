@@ -8,7 +8,7 @@ fetch_sat(){
     # returns: 0 if sat is found, 1 if not
     # output: sat value
     sat=$(curl -s https://ordinals.com/inscription/${inscription} | grep -oP '(?<=<a href=/sat/)[^"]+' | grep -o '[0-9]\{13\}' | uniq 2>/dev/null)
-    inscription_id=$(curl -s https://ordinals.com/inscription/${inscription} | grep -o '<title>Inscription [0-9]\+</title>')
+    inscription_id=$(curl -s https://ordinals.com/inscription/${inscription} | grep -o '<title>Inscription [0-9]\+</title>' | grep -o '[0-9]\+' 2>/dev/null)
 }
 
 
@@ -23,17 +23,15 @@ echo "[" > $tmp_file
 
 for inscription in $(jq -r '.[] | .inscription' $inscribe_log); do
     fetch_sat $inscription
-    if [ -z "$sat" ]; then
-        sat="unknown-or-pending-inscription"
-    fi
-    if [ -z "$inscription_id" ]; then
-        inscription_id="unknown-or-pending-inscription"
-    fi
 
-    echo "sat: $sat - inscription_id: $inscription_id - inscription: $inscription"
-    jq --arg inscription "$inscription" --arg sat "$sat" --arg inscription_id "$inscription_id" \
-        '.[] | select(.inscription == $inscription) | . + {sat: $sat, inscription_id: $inscription_id}' $inscribe_log >> $tmp_file
-
+    if [ -z "$sat" ] && [ -z "$inscription_id" ]; then
+        echo "inscription: $inscription - no value yet for sat and inscription_id - skipping"
+        jq --arg inscription "$inscription" '.[] | select(.inscription == $inscription)' $inscribe_log >> $tmp_file
+    else
+        echo "inscription: $inscription - sat: $sat - inscription_id: $inscription_id "
+        jq --arg inscription "$inscription" --arg sat "$sat" --arg inscription_id "$inscription_id" \
+            '.[] | select(.inscription == $inscription) | . + {sat: $sat, inscription_id: $inscription_id}' $inscribe_log >> $tmp_file
+    fi
     # Check if $inscription is equal to the last element in the loop
     if [ "$inscription" == "$last_inscription" ]; then
         echo "]" >> $tmp_file
