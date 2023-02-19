@@ -9,6 +9,7 @@ fetch_sat(){
     # output: sat value
     sat=$(curl -s https://ordinals.com/inscription/${inscription} | grep -oP '(?<=<a href=/sat/)[^"]+' | grep -o '[0-9]\{13\}' | uniq 2>/dev/null)
     inscription_id=$(curl -s https://ordinals.com/inscription/${inscription} | grep -o '<title>Inscription [0-9]\+</title>' | grep -o '[0-9]\+' 2>/dev/null)
+    block=$(curl -s https://ordinals.com/sat/${sat} | grep -oP '(?<=<a href=/block/)[^>]+' 2>/dev/null)
 }
 
 fetch_description_from_filename(){
@@ -51,10 +52,10 @@ for inscription in $(jq -r '.[] | .inscription' $inscribe_log); do
         echo "inscription: $inscription - no value yet for sat and inscription_id - skipping"
         jq --arg inscription "$inscription" '.[] | select(.inscription == $inscription)' $inscribe_log >> $tmp_file
     else
-        echo "inscription: $inscription - sat: $sat - inscription_id: $inscription_id "
+        echo "inscription: $inscription - sat: $sat - block: $block - inscription_id: $inscription_id "
         # if the keys exist they will not be overwritten
-        jq --arg inscription "$inscription" --arg sat "$sat" --arg inscription_id "$inscription_id" \
-            '.[] | select(.inscription == $inscription) | . + {sat: $sat, inscription_id: $inscription_id}' $inscribe_log >> $tmp_file
+        jq --arg inscription "$inscription" --arg sat "$sat" --arg inscription_id "$inscription_id" --arg block "$block" \
+            '.[] | select(.inscription == $inscription) | . + {sat: $sat, inscription_id: $inscription_id, block: $block}' $inscribe_log >> $tmp_file
     fi
     # Check if $inscription is equal to the last element in the loop
     if [ "$inscription" == "$last_inscription" ]; then
