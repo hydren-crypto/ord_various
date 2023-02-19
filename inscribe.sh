@@ -58,6 +58,10 @@ fetch_json_log(){
     aws s3 cp "${aws_s3_uri}"/"${aws_s3_dir}"/${inscribe_log} .
 }
 
+get_count_of_inscriptions(){
+    jq '.[] | .inscription'  ${inscribe_log} | wc -l
+}
+
 prep_json_to_log(){
     sed -i '/\]/d' ${inscribe_log} # Strip trailing ]
     echo "," >> ${inscribe_log}
