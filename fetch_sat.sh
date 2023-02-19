@@ -66,21 +66,27 @@ for inscription in $(jq -r '.[] | .inscription' $inscribe_log); do
     fi
  done
 
+echo "Line count for Inscription and sat"
 echo "$inscribe_log"
-cat $inscribe_log | grep -wc "inscription"
-cat $inscribe_log | grep -wc "sat"
+original_lc=$(jq '.[] | .inscription' $inscribe_log | wc -l)
+echo "$original_lc"
+jq '.[] | .sat' $inscribe_log | wc -l
 
-echo "$tmp_file"
-cat $tmp_file | grep -wc "inscription" 
-cat $tmp_file | grep -wc "sat"
+echo "$tmp_file - after adding sat value"
+temp_lc=$(jq '.[] | .inscription' $tmp_file | wc -l)
+echo "$temp_lc"
+jq '.[] | .sat' $tmp_file | wc -l
+
 
 #de-duplicate values:
 # jq '[.[] | group_by(.commit | map(add) | .[]]' $tmp_file > new_file.txt
 jq --slurp '[.[] | group_by(.inscription) | map(reduce .[] as $item ({}; . * $item))]' $tmp_file | jq '.[0]' > new_file.txt
 
+echo "Deduplicated inscription line count"
 echo "new_file.txt"
-cat new_file.txt | grep -wc "inscription"
-cat new_file.txt | grep -wc "sat"
+jq '.[] | .inscription' new_file.txt | wc -l
+jq '.[] | .sat' new_file.txt | wc -l
+
 
 echo "moving new_file.txt to $inscribe_log - backup saved as inscribe_log.bak"
 mv new_file.txt $inscribe_log
