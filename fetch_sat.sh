@@ -11,6 +11,29 @@ fetch_sat(){
     inscription_id=$(curl -s https://ordinals.com/inscription/${inscription} | grep -o '<title>Inscription [0-9]\+</title>' | grep -o '[0-9]\+' 2>/dev/null)
 }
 
+fetch_description_from_filename(){
+    # fetches description from filename
+    # usage: fetch_description_from_filename <filename>
+    # example: fetch_description_from_filename 8ae1bcf23e58f88f895dab98fba21e7c66aa58858b4d14b2f848fb807c404cf9i0
+    # returns: 0 if description is found, 1 if not
+    # output: description value
+    description=$(ls ./done/ | grep $inscription |  cut -d_ -f2- | cut -d. -f1)
+    if [ -z "$description" ]; then
+        description="unknown"
+    fi
+}
+
+fetch_filename_from_done_dir(){
+    # fetches filename from done directory
+    # usage: fetch_filename_from_done_dir <filename>
+    # example: fetch_filename_from_done_dir 8ae1bcf23e58f88f895dab98fba21e7c66aa58858b4d14b2f848fb807c404cf9i0
+    # returns: 0 if filename is found, 1 if not
+    # output: filename value
+    filename=$(ls ./done/ | grep $inscription |  cut -d_ -f2)
+    if [ -z "$filename" ]; then
+        filename="unknown"
+    fi
+}
 
 tmp_file=tmp_sat_out.json
 inscribe_log=inscribe_log.json
@@ -23,10 +46,6 @@ echo "[" > $tmp_file
 
 for inscription in $(jq -r '.[] | .inscription' $inscribe_log); do
     fetch_sat $inscription
-    filename=$(ls ./done/ | grep $inscription |  cut -d_ -f2)
-    if [ -z "$filename" ]; then
-        filename="unknown"
-    fi
 
     if [ -z "$sat" ] && [ -z "$inscription_id" ]; then
         echo "inscription: $inscription - no value yet for sat and inscription_id - skipping"
@@ -34,8 +53,8 @@ for inscription in $(jq -r '.[] | .inscription' $inscribe_log); do
     else
         echo "inscription: $inscription - sat: $sat - inscription_id: $inscription_id "
         # if the keys exist they will not be overwritten
-        jq --arg inscription "$inscription" --arg sat "$sat" --arg inscription_id "$inscription_id" --arg filename "$filename" \
-            '.[] | select(.inscription == $inscription) | . + {sat: $sat, inscription_id: $inscription_id, filename: $filename}' $inscribe_log >> $tmp_file
+        jq --arg inscription "$inscription" --arg sat "$sat" --arg inscription_id "$inscription_id" \
+            '.[] | select(.inscription == $inscription) | . + {sat: $sat, inscription_id: $inscription_id}' $inscribe_log >> $tmp_file
     fi
     # Check if $inscription is equal to the last element in the loop
     if [ "$inscription" == "$last_inscription" ]; then
@@ -63,6 +82,7 @@ echo "new_file.txt"
 cat new_file.txt | grep -wc "inscription"
 cat new_file.txt | grep -wc "sat"
 
+echo "moving new_file.txt to $inscribe_log - backup saved as inscribe_log.bak"
 mv new_file.txt $inscribe_log
 
 
