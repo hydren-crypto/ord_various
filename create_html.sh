@@ -3,8 +3,8 @@
 # create a html file with a gallery listing of all images
 inscribe_log=inscribe_log.json
 html_output=gallery.html
-inscription_url_prefix=https://ordinals.com/preview/
-content_url_prefix=https://ordinals.com/content/
+inscription_url_prefix=https://ordinals.com/inscription/
+content_url_prefix=https://ordinals.com/preview/
 
 echo "<html>
 <head>
@@ -17,7 +17,6 @@ echo "<html>
             explorer_url=${inscription_url_prefix}${inscription}
             content_url=${content_url_prefix}${inscription}
 	    alt_text=$(jq --arg description "$description" --arg inscription "$inscription" '.[] | select(.inscription == $inscription) | .description' $inscribe_log)
-            #content_url=$(echo "$explorer_url" | sed -E 's/\/inscription\//\/content\//g')
             echo "<a href=\"$explorer_url\"><img src=\"$content_url\" alt=\"$alt_text\"/>"
         done)
     </div>
