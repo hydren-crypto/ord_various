@@ -1,13 +1,11 @@
 #!/bin/bash
-
 # wrapper around ord to save log files in json to aws
 # simplifies mult-file inscription processing
-
 # perhaps we add functionality to launch in subshells and trigger something
 # when the inscription is confirmed? 
 
 get_unconfirmed_trx(){
-    ord wallet transactions | grep -E '\s0$' | awk '{ print $1 }' | uniq
+    ord ${ord_args} wallet transactions | grep -E '\s0$' | awk '{ print $1 }' | uniq
 }
 
 #for i in $(ord wallet transactions | grep -E '\s0$' | awk '{ print $1 }' | uniq); do bitcoin-cli getrawtransaction "$i"; done
@@ -32,7 +30,7 @@ check_confirmation(){
     echo "Checking if transaction $txid is confirmed"
     while true; do
         sleep 60
-        is_confirmed=$(bitcoin-cli getrawtransaction "$txid" 1)
+        is_confirmed=$(bitcoin-cli ${bitcoin_cli_args} getrawtransaction "$txid" 1)
         if [[ $is_confirmed =~ "confirmations" ]]; then
             echo "Transaction $txid is confirmed"
             break
@@ -42,7 +40,7 @@ check_confirmation(){
 
 check_balance(){ 
     echo "checking wallet balance and syncing index if needed..."
-    wallet_balance=$(ord wallet balance)
+    wallet_balance=$(ord ${ord_args} wallet balance | jq '.cardinal')
     wallet_balance_btc=$(echo "$wallet_balance * 0.00000001" | bc)
     if [ "$wallet_balance" -eq 0 ]; then
         echo "insufficient balance to inscribe. Bye! "
@@ -51,7 +49,7 @@ check_balance(){
 }
 
 check_bitcoin_cli_balance(){
-    bcli_balance=$(bitcoin-cli -getinfo | grep "Balance:" | awk '{print $2}')
+    bcli_balance=$(bitcoin-cli ${bitcoin_cli_args} -getinfo | grep "Balance:" | awk '{print $2}')
 }
 
 fetch_json_log(){
@@ -100,6 +98,13 @@ usage(){
     echo ""
     exit 0
 }
+
+
+bitcoin_cli_args=${BITCOIN_CLI_ARGS}
+#bitcoin_cli_args='-datadir=/var/lib/bitcoind'
+ord_args=${ORD_ARGS} # Set ENV Var
+#ord_args='--bitcoin-data-dir /var/lib/bitcoind/ --rpc-url http://127.0.0.1:8332/wallet/ord --cookie-file /var/lib/bitcoind/.cookie'
+ord_version=$(ord --version | cut -d ' ' -f 2)
 
 get_fee_rates
 check_balance
@@ -171,7 +176,7 @@ echo "USD COST: $usd_cost"
 [ "$skipcheck" = true ] || read -p "Press enter to continue...";
 
 
-ord wallet inscribe ${cmdline_filename} --fee-rate ${fee_rate} &> $tmp_file
+ord ${ord_args} wallet inscribe ${cmdline_filename} --fee-rate ${fee_rate} &> $tmp_file
 ord_success=$?
 
 if [[ ${ord_success} -eq 0 ]]; then
