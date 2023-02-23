@@ -25,6 +25,14 @@ usage(){
     exit 0
 }
 
+
+bitcoin_cli_args=${BITCOIN_CLI_ARGS}
+bitcoin_cli_args='-datadir=/var/lib/bitcoind'
+ord_args=${ORD_ARGS}
+ord_args='--bitcoin-data-dir /var/lib/bitcoind/ --rpc-url http://127.0.0.1:8332/wallet/ord --cookie-file /var/lib/bitcoind/.cookie'
+ord_version=$(ord --version | cut -d ' ' -f 2)
+
+
 get_fee_rates
 
 tmp_file=tmp_send_out.json
@@ -80,7 +88,7 @@ display_fee_rates
 [ "$skipcheck" = true ] || read -p "Press enter to continue...";
 
 
-confirmation=$(ord --wallet $wallet_name wallet send $to_address $inscription --fee-rate $fee_rate 2>&1)
+confirmation=$(ord ${ord_args} --wallet $wallet_name wallet send $to_address $inscription --fee-rate $fee_rate 2>&1)
 send_status=$?
 if [[ $send_status -eq 0 ]]; then
     echo "Successful confirmation: $confirmation"
