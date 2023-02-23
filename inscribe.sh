@@ -5,7 +5,7 @@
 # when the inscription is confirmed? 
 
 get_unconfirmed_trx(){
-    ord ${ord_args} wallet transactions | grep -E '\s0$' | awk '{ print $1 }' | uniq
+    ord --wallet $wallet_name ${ord_args} wallet transactions | grep -E '\s0$' | awk '{ print $1 }' | uniq
 }
 
 #for i in $(ord wallet transactions | grep -E '\s0$' | awk '{ print $1 }' | uniq); do bitcoin-cli getrawtransaction "$i"; done
@@ -40,7 +40,7 @@ check_confirmation(){
 
 check_balance(){ 
     echo "checking wallet balance and syncing index if needed..."
-    wallet_balance=$(ord ${ord_args} wallet balance | jq '.cardinal')
+    wallet_balance=$(ord --wallet $wallet_name ${ord_args} wallet balance | jq '.cardinal')
     wallet_balance_btc=$(echo "$wallet_balance * 0.00000001" | bc)
     if [ "$wallet_balance" -eq 0 ]; then
         echo "insufficient balance to inscribe. Bye! "
@@ -88,6 +88,7 @@ usage(){
     echo "  --description|-d: description of the file"
     echo "  --fee|-f: fee rate to use (default: $fee_rate)"
     echo "  --skip|-s: skip confirmation check"
+    echo "  --wallet|-w: wallet name (default: $wallet_name)"
     echo "  FILENAME: file to inscribe"
     echo ""
     display_fee_rates
@@ -105,11 +106,7 @@ bitcoin_cli_args=${BITCOIN_CLI_ARGS}
 ord_args=${ORD_ARGS} # Set ENV Var
 #ord_args='--bitcoin-data-dir /var/lib/bitcoind/ --rpc-url http://127.0.0.1:8332/wallet/ord --cookie-file /var/lib/bitcoind/.cookie'
 ord_version=$(ord --version | cut -d ' ' -f 2)
-
-get_fee_rates
-check_balance
-check_bitcoin_cli_balance
-
+wallet_name=ord
 tmp_file=tmp_out.txt
 inscribe_log=inscribe_log.json
 fee_rate=$fee_rate_1440
@@ -121,6 +118,7 @@ skipcheck=false
 while [[ $1 =~ ^- ]]; do
     case $1 in
 	    "--check-fee"|"-cf")
+            get_fee_rates
             display_fee_rates
 	    exit 0
 	    ;;
@@ -135,6 +133,13 @@ while [[ $1 =~ ^- ]]; do
         "--skip"|"-s")
             skipcheck=true
             ;;
+        "--wallet"|"-w")
+            shift
+            wallet_name=$1
+            ;;
+        "--help"|"-h")
+            usage
+            ;;
         *)
             echo "Unknown option $1"
             echo; usage
@@ -147,6 +152,10 @@ done
 if [ $# -eq 0 ]; then
  usage
 fi
+
+get_fee_rates
+check_balance
+check_bitcoin_cli_balance
 
 cmdline_filename=$1
 shift
@@ -176,7 +185,7 @@ echo "USD COST: $usd_cost"
 [ "$skipcheck" = true ] || read -p "Press enter to continue...";
 
 
-ord ${ord_args} wallet inscribe ${cmdline_filename} --fee-rate ${fee_rate} &> $tmp_file
+ord --wallet $wallet_name ${ord_args} wallet inscribe ${cmdline_filename} --fee-rate ${fee_rate} &> $tmp_file
 ord_success=$?
 
 if [[ ${ord_success} -eq 0 ]]; then
