@@ -16,7 +16,7 @@ echo "<html>
         $(for inscription in $(jq -r '.[] | .inscription' $inscribe_log); do
             explorer_url=${inscription_url_prefix}${inscription}
             content_url=${content_url_prefix}${inscription}
-	        alt_text=$(jq --arg description "$description" --arg inscription "$inscription" '.[] | select(.inscription == $inscription) | .description' $inscribe_log)
+	        alt_text=$(jq --arg description "$description" --arg inscription "$inscription" '.[] | select(.inscription == $inscription) | .description' $inscribe_log | tr -d '"')
             echo "<a href=\"$explorer_url\"><img src=\"$content_url\" alt=\"$alt_text\"/>"
         done)
     </div>
