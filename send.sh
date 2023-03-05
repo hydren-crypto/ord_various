@@ -1,6 +1,8 @@
 #!/bin/bash
 
 # wrapper on ord to send and log json output
+# Sample:
+# for i in $(jq '.[] | select(.description | test("sartoshi")) | .inscription' inscribe_log.json |  tr -d '"'); do ./send.sh  -d jamex12-30 -s <RECEIVE-ADDRESS>  $i; done
 
 get_fee_rates(){
     # checking for 1440 minutes / 24hr
@@ -27,9 +29,9 @@ usage(){
 
 
 bitcoin_cli_args=${BITCOIN_CLI_ARGS}
-bitcoin_cli_args='-datadir=/var/lib/bitcoind'
+#bitcoin_cli_args='-datadir=/var/lib/bitcoind'
 ord_args=${ORD_ARGS}
-ord_args='--bitcoin-data-dir /var/lib/bitcoind/ --rpc-url http://127.0.0.1:8332/wallet/ord --cookie-file /var/lib/bitcoind/.cookie'
+#ord_args='--bitcoin-data-dir /var/lib/bitcoind/ --rpc-url http://127.0.0.1:8332/wallet/ord --cookie-file /var/lib/bitcoind/.cookie'
 ord_version=$(ord --version | cut -d ' ' -f 2)
 
 
@@ -93,14 +95,14 @@ send_status=$?
 if [[ $send_status -eq 0 ]]; then
     echo "Successful confirmation: $confirmation"
     # jq --arg inscription "$inscription" '.[] | select(.inscription == $inscription)' $inscribe_log
-    echo "Updating $inscribe_log with confirmation"
+    echo "Updating $tmp_file with confirmation"
     success_status="sent-$send_description-$confirmation-to-$to_address"
     # the following over-writes the status field
     # jq --arg inscription "$inscription" --arg success_status "$success_status" 'map(if .inscription == $inscription then .status = $success_status else . end)' $inscribe_log > $tmp_file
     # the following will append to the status field
     jq --arg inscription "$inscription" --arg success_status "$success_status" 'map(if .inscription == $inscription then .status |= . + "\n" + $success_status else . end)' $inscribe_log > $tmp_file
 else
-    echo "Adding failure message to $inscribe_log"
+    echo "Adding failure message to $tmp_file"
     failed_status="failed-send-$send_description-$confirmation"
     echo "$confirmation"
     #jq --arg inscription "$inscription" --arg failed_status "$failed_status" 'map(if .inscription == $inscription then .status = $failed_status else . end)' $inscribe_log > $tmp_file
@@ -111,17 +113,16 @@ fi
 which jsonlint > /dev/null 2>&1
 if [ $? -ne 0 ]; then
     echo "Error: jsonlint is not installed on this system. Install python3-demjson to validate the json file"
-    echo "we will still move the file to $tmp_file to $inscribe_log"
+    echo "we will still move the file $tmp_file to $inscribe_log"
 else
     jsonlint $tmp_file > /dev/null 2>&1
     if [ $? -ne 0 ]; then
         echo "Error in JSON file"
-        echo "Please review $tmp_file - we have preserved $inscribe_log"
+        echo "Please review $tmp_file - we have preserved the original$inscribe_log"
         exit 1
     fi
 fi
 
-echo "THIS IS TESTING - $tmp_file has been preserved for review" 
-
+echo "moving $tmp_file to $inscribe_log"
 mv $tmp_file $inscribe_log
-#rm "${tmp_file}"
+rm "${tmp_file}"
