@@ -149,13 +149,14 @@ while [[ $1 =~ ^- ]]; do
     shift
 done
 
-if [ $# -eq 0 ]; then
- usage
-fi
 
 get_fee_rates
 check_balance
 check_bitcoin_cli_balance
+
+if [ $# -eq 0 ]; then
+ usage
+fi
 
 cmdline_filename=$1
 shift
