@@ -41,12 +41,11 @@ for txid in $txids
 do
     txid=17686488353b65b128d19031240478ba50f1387d0ea7e5f188ea7fda78ea06f4
     cntrprty_data=$(curl -s https://xchain.io/api/tx/$txid)
-    cntrprtydesc=$(echo $cntrprty_data | jq '.description?')
-    cntrprtydesc="${cntrprtydesc//\"}"
-    timestamp=$(echo $cntrprty_data | jq '.timestamp')
-    block_index=$(echo $cntrprty_data | jq '.block_index')
-    asset_longname=$(echo $cntrprty_data | jq '.asset_longname')
-    asset=$(echo $cntrprty_data | jq '.asset')
+    cntrprtydesc=$(echo $cntrprty_data | jq '.description?' | tr -d \")
+    timestamp=$(echo $cntrprty_data | jq '.timestamp' | tr -d \")
+    block_index=$(echo $cntrprty_data | jq '.block_index' | tr -d \")
+    asset_longname=$(echo $cntrprty_data | jq '.asset_longname' | tr -d \")
+    asset=$(echo $cntrprty_data | jq '.asset' | tr -d \")
 
     if [[ -n "$cntrprtydesc" && "$cntrprtydesc" != ""null"" ]]; then 
         echo "Found a Counterparty Trx"
@@ -58,7 +57,7 @@ do
                 prep_json_to_log
             fi
             stampstring=$cntrprtydesc
-            #stampstring=$(echo $cntrprtydesc | sed -n 's/.*stamp:"\?\(.*\)".*/\1/p')
+            stampstring=$(echo $cntrprtydesc | awk -F "stamp:" '{print $2}')
             cat <<EOF >> $stamp_json
     {
         "txid": "$txid",
@@ -67,7 +66,7 @@ do
         "timestamp": "$timestamp",
         "block_index": "$block_index",
         "stampstring": "$stampstring"
-    }
+    },
 ]
 EOF
         fi
