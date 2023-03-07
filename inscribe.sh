@@ -169,7 +169,7 @@ if [ $# -eq 0 ]; then
  usage
 fi
 
-if [ -n "${cloudfront_id}" ] && [ -n "${aws_s3_uri}" ] && [ -n "${aws_s3_dir}" ]; then
+if [ -n "${CLOUDFRONT_ID}" ] && [ -n "${aws_s3_uri}" ] && [ -n "${aws_s3_dir}" ]; then
    echo "$inscribe_log will be sent to AWS S3"
    aws_upload=true
 else
