@@ -66,7 +66,7 @@ do
         "timestamp": "$timestamp",
         "block_index": "$block_index",
         "stampstring": "$stampstring"
-    },
+    }
 ]
 EOF
         fi
