@@ -1,33 +1,18 @@
 #!/bin/bash
-# wrapper around ord to save log files in json and optionally upload to aws S3
-# this simplifies mult-file inscription processing, and creates a more complete
-# JSON log which includes filename and an optional inscription description / collection name
-# this provides additional data over the 'ord wallet inscription' command for future processing
+# Wrapper script for 'ord' to save log files in JSON format, and optionally upload to AWS S3.
+# This simplifies multi-file inscription processing and creates a more complete JSON log, which includes filename and an optional inscription description/collection name. The default description is the short filename - e.g. Ordinalien42.jpg will get a description of Ordinalien42. This provides additional data over the 'ord wallet inscription' command for future processing.
 
 # REQUIREMENTS: 
-# a fully functional ord wallet - ie: 'ord wallet balance' displays a value
-# jq must be installed on the host for proper logging
+# - Fully functional ord wallet - i.e. 'ord wallet balance' displays a value
+# - jq must be installed on the host for proper logging
 
 # OPTIONAL ENVIRONMENT VARIABLES:
-# manually create a .env file with your variables for the following
-# CLOUDFRONT_ID=<your cloudfront ID>
-# aws_s3_uri=s3://hydren.io
-# aws_s3_dir=inscribed
-# note: if these values are not defined we will not upload the inscribe_log to AWS S3
-# the inscribe_log will still be maintained on the host running this script
+# - Create a .env file with your variables for the following:
+#    - CLOUDFRONT_ID=<your cloudfront ID>
+#    - aws_s3_uri=s3://hydren.io
+#    - aws_s3_dir=inscribed
 
-# Depending on your bitcoind and ord configuration you may also need to define these:
-# if you can run 'ord' from any directory then the defaults will work properly.
-# Example: 
-# bitcoin_cli_args='-datadir=/var/lib/bitcoind'
-# ORD_ARGS='--bitcoin-data-dir /var/lib/bitcoind/ --rpc-url http://127.0.0.1:8332/wallet/ord --cookie-file /var/lib/bitcoind/.cookie'
-# BITCOIN_CLI_ARGS='-datadir=/var/lib/bitcoind'
-
-# perhaps we add functionality to launch in subshells and trigger something
-# when the inscription is confirmed on chain? This will allow us to iterate through
-# a larger group of files in an automated way as funds are deposited back into the wallet
-
-source .env
+# Note: If these values are not defined, we will not upload the inscribe_log to AWS S3. The inscribe_log will still be maintained
 
 check_balance(){ 
     echo "checking wallet balance and syncing index if needed..."
@@ -125,6 +110,7 @@ usage(){
 #for i in $(ord wallet transactions | grep -E '\s0$' | awk '{ print $1 }' | uniq); do bitcoin-cli getrawtransaction "$i"; done
 # check aws access key: aws configure get aws_access_key_id
 
+get_fee_rates # for definition of the default fee_rate if undefined
 
 bitcoin_cli_args=${BITCOIN_CLI_ARGS}
 ord_args=${ORD_ARGS} # Set ENV Var
@@ -132,13 +118,12 @@ ord_version=$(ord --version | cut -d ' ' -f 2)
 wallet_name=ord
 tmp_file=tmp_out.txt
 inscribe_log=inscribe_log.json
-fee_rate=$fee_rate_1440
-aws_s3_uri=s3://hydren.io
-aws_s3_dir=inscribed
+fee_rate=$fee_rate_1440:=4
 ord_description=""
 skipcheck=false
 ord_explorer_url=https://ordinals.com/inscription/
 script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+source ${script_dir}/.env
 
 while [[ $1 =~ ^- ]]; do
     case $1 in
@@ -176,7 +161,7 @@ done
 
 command -v jq >/dev/null 2>&1 || { echo >&2 "jq is required but it's not installed.  Aborting."; exit 1; }
 
-get_fee_rates
+
 check_balance
 check_bitcoin_cli_balance
 
