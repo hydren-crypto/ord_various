@@ -125,7 +125,7 @@ ord_description=""
 skipcheck=false
 ord_explorer_url=https://ordinals.com/inscription/
 script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-source ${script_dir}/.env
+source ${script_dir}/.env 2> /dev/null
 
 while [[ $1 =~ ^- ]]; do
     case $1 in
