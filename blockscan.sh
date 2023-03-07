@@ -51,22 +51,24 @@ do
     if [[ -n "$cntrprtydesc" && "$cntrprtydesc" != ""null"" ]]; then 
         echo "Found a Counterparty Trx"
         if [[ "$cntrprtydesc" == *"stamp"* ]]; then
-            echo "FOUND A STAMP"
-            if [[ $newjson == true ]]; then
-                echo "," >> $stamp_json
+            echo "FOUND A STAMP WITH STAMP: prefix"
+            if [[ "$newjson" == true ]]; then
                 newjson=false
+            else
                 prep_json_to_log
             fi
-            stampstring=$(echo $cntrprtydesc | sed -n 's/.*stamp:"\?\(.*\)".*/\1/p')
+            stampstring=$cntrprtydesc
+            #stampstring=$(echo $cntrprtydesc | sed -n 's/.*stamp:"\?\(.*\)".*/\1/p')
             cat <<EOF >> $stamp_json
-            {
-                "txid": "$txid",
-                "asset_longname": "$asset_longname",
-                "asset": "$asset",
-                "timestamp": "$timestamp",
-                "block_index": "$block_index",
-                "stampstring": "$stampstring"
-            }
+    {
+        "txid": "$txid",
+        "asset_longname": "$asset_longname",
+        "asset": "$asset",
+        "timestamp": "$timestamp",
+        "block_index": "$block_index",
+        "stampstring": "$stampstring"
+    }
+]
 EOF
         fi
     fi
