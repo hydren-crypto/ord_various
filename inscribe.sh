@@ -96,6 +96,7 @@ usage(){
     echo "  --fee|-f: fee rate to use (default: $fee_rate)"
     echo "  --skip|-s: skip confirmation check"
     echo "  --wallet|-w: wallet name (default: $wallet_name)"
+    echo "  --wallet|-w: wallet name (default: $wallet_name)"
     echo "  FILENAME: file to inscribe"
     echo ""
     display_fee_rates
@@ -115,6 +116,7 @@ get_fee_rates # for definition of the default fee_rate if undefined
 bitcoin_cli_args=${BITCOIN_CLI_ARGS}
 ord_args=${ORD_ARGS} # Set ENV Var
 ord_version=$(ord --version | cut -d ' ' -f 2)
+wallet_name=ord
 wallet_name=ord
 tmp_file=tmp_out.txt
 inscribe_log=inscribe_log.json
@@ -142,6 +144,13 @@ while [[ $1 =~ ^- ]]; do
             ;;
         "--skip"|"-s")
             skipcheck=true
+            ;;
+        "--wallet"|"-w")
+            shift
+            wallet_name=$1
+            ;;
+        "--help"|"-h")
+            usage
             ;;
         "--wallet"|"-w")
             shift
