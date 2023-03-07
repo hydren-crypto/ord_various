@@ -5,8 +5,8 @@
 # and keeps refreshing and updating the database in real-time.
 
 prep_json_to_log(){
-    sed -i '/\]/d' ${STAMP_JSON} # Strip trailing ]
-    echo "," >> ${STAMP_JSON} # add comma for next entry
+    sed -i '/\]/d' ${stamp_json} # Strip trailing ]
+    echo "," >> ${stamp_json} # add comma for next entry
 }
 
 send_file_to_aws(){  # ORIGINAL_NAME  TARGET_NAME
