@@ -181,11 +181,15 @@ cmdline_filename=$1
 shift
 
 if [ ! -f "$cmdline_filename" ]; then
-    echo "File $cmdline_filename does not exist"
+    echo "File $cmdline_filename does not exist.. ABORTING"
     exit 1
 fi
 
-root_filename=${cmdline_filename%.*}
+# if a dir is provided extract these
+dirname_var=$(dirname "$cmdline_filename") 
+filename_var=$(basename "$cmdline_filename") 
+
+root_filename=${filename_var%.*}
 if [ -z "$ord_description" ]; then
   ord_description="$root_filename"
 fi
@@ -235,7 +239,7 @@ if [[ ${ord_success} -eq 0 ]]; then
        
     time_now=$(date +"%Y%m%d_%H:%M")UTC
     status="inscribed-${time_now}"
-    cat ${tmp_file} | jq --arg file "$cmdline_filename"  '. + {"filename": $file}' | \
+    cat ${tmp_file} | jq --arg file "$filename_var"  '. + {"filename": $file}' | \
         jq --arg fee_rate "$fee_rate" '. + {"fee_rate": $fee_rate}' | \
         jq --arg explorer "$inscr_url" '. + {"explorer": $explorer}' | \
         jq --arg description "$ord_description" '. + {"description": $description}' | \
@@ -243,11 +247,11 @@ if [[ ${ord_success} -eq 0 ]]; then
         jq --arg status "$status" '. + {"status": $status}' >> ${inscribe_log}
     close_json_file
     if [ "$aws_upload" = true ]; then
-        send_file_to_aws "${cmdline_filename}" "${inscription}_${cmdline_filename}"
+        send_file_to_aws "${cmdline_filename}" "${inscription}_${filename_var}"
         send_file_to_aws "${inscribe_log}" "${inscribe_log}"
         aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_ID" --paths /${aws_s3_dir}/${inscribe_log}
     fi
-    mv "${cmdline_filename}" ${script_dir}/done/${inscription}_${cmdline_filename}
+    mv "${cmdline_filename}" ${script_dir}/done/${inscription}_${filename_var}
 else
     echo "Unsuccessful inscription!"
     echo "$(cat $tmp_file)"
