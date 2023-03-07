@@ -1,8 +1,7 @@
 #!/bin/bash
 
-# This script scans Bitcoin transactions for messages containing a stamp
-# and stores the relevant information in a database. It starts by scanning from block 700000,
-# and keeps refreshing and updating the database in real-time.
+# This script scans Bitcoin transactions for Counterparty transactions that contain
+# a description field containing / bgins with STAMP:
 
 prep_json_to_log(){
     sed -i '/\]/d' ${stamp_json} # Strip trailing ]
