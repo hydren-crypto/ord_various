@@ -230,6 +230,7 @@ if [[ ${ord_success} -eq 0 ]]; then
             prep_json_to_log # this assumes $inscribe_log already conatins an array
         else
             echo "[" > $inscribe_log
+        fi
     fi
        
     time_now=$(date +"%Y%m%d_%H:%M")UTC
