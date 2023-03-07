@@ -118,7 +118,7 @@ ord_version=$(ord --version | cut -d ' ' -f 2)
 wallet_name=ord
 tmp_file=tmp_out.txt
 inscribe_log=inscribe_log.json
-fee_rate=$fee_rate_1440:=4
+fee_rate=${fee_rate_1440:=4}
 ord_description=""
 skipcheck=false
 ord_explorer_url=https://ordinals.com/inscription/
