@@ -9,66 +9,60 @@ prep_json_to_log(){
     echo "," >> ${STAMP_JSON} # add comma for next entry
 }
 
-# Set variables
-DATABASE=stamp.db
-BLOCK=$(bitcoin-cli getblockcount)
-LOGFILE=stamp_scan.log
-STAMP_JSON=stamp.json
+send_file_to_aws(){  # ORIGINAL_NAME  TARGET_NAME
+    aws s3 cp "${1}" "${aws_s3_uri}"/"${aws_s3_dir}"/${2:=$1}
+}
 
-# Initialize database if it doesn't exist
-#if [ ! -f "$DATABASE" ]; then
-#    sqlite3 $DATABASE "CREATE TABLE stamps (txid TEXT, vout INTEGER, address TEXT, value REAL, timestamp INTEGER, stamp TEXT);"
-#    echo "Database created."
-#fi
-
-# Start scanning transactions
-BLOCKHASH=$(bitcoin-cli getblockhash 779652)
-CURRENTBLOCK=$(bitcoin-cli getblockcount)
-LASTBLOCK="779652"
+logfile=stamp_scan.log
+stamp_json=stamp.json
+blockhash=$(bitcoin-cli getblockhash 779652)
+currentblock=$(bitcoin-cli getblockcount)
+lastblock="779652"
 
 # open JSON for editing
-if [ -f ${STAMP_JSON} ]; then
-    echo "Appending to existing $STAMP_JSON in current directory"
+if [ -f ${stamp_json} ]; then
+    echo "Appending to existing $stamp_json in current directory"
     prep_json_to_log # this assumes $inscribe_log already contains an array
 else
-    echo "[" > $STAMP_JSON
+    echo "[" > $stamp_json
 fi
 
-#while [ $LASTBLOCK -lt $CURRENTBLOCK ]; do
+#while [ $lastblock -lt $currentblock ]; do
 
-    #BLOCK=($LASTBLOCK + 1)
-    BLOCK=$LASTBLOCK
-    TXIDS=$(bitcoin-cli getblock  $BLOCKHASH | jq -r '.tx[]')
-    #TXIDS=$(bitcoin-cli listsinceblock  $BLOCKHASH | jq -r '.transactions[].txid')
-    for TXID in $TXIDS
-    do
-    #TXID=3e034d5522e5c4abd9466ad5e9ca340ded72bafad413dd4c1c2583e801e751ff
-    # curl -s https://xchain.io/api/tx/3e034d5522e5c4abd9466ad5e9ca340ded72bafad413dd4c1c2583e801e751ff | jq '.description? | select(startswith("stamp",ignorecase))' 
-    CNTRPRTY_DATA=$(curl -s https://xchain.io/api/tx/$TXID)
-    CNTRPRTYDESC=$(echo $CNTRPRTY_DATA | jq '.description?')
-    CNTRPRTYDESC="${CNTRPRTYDESC//\"}"
-    TIMESTAMP=$(echo $CNTRPRTY_DATA | jq '.timestamp')
-    BLOCK_INDEX=$(echo $CNTRPRTY_DATA | jq '.block_index')
-    ASSET_LONGNAME=$(echo $CNTRPRTY_DATA | jq '.asset_longname')
-    ASSET=$(echo $CNTRPRTY_DATA | jq '.asset')
+block=$lastblock
+txids=$(bitcoin-cli getblock  $blockhash | jq -r '.tx[]')
+#txids=$(bitcoin-cli listsinceblock  $blockhash | jq -r '.transactions[].txid')
+counter=0
 
-    if [[ -n "$CNTRPRTYDESC" && "$CNTRPRTYDESC" != ""null"" ]]; then 
+for txid in $txids
+do
+    cntrprty_data=$(curl -s https://xchain.io/api/tx/$txid)
+    cntrprtydesc=$(echo $cntrprty_data | jq '.description?')
+    cntrprtydesc="${cntrprtydesc//\"}"
+    timestamp=$(echo $cntrprty_data | jq '.timestamp')
+    block_index=$(echo $cntrprty_data | jq '.block_index')
+    asset_longname=$(echo $cntrprty_data | jq '.asset_longname')
+    asset=$(echo $cntrprty_data | jq '.asset')
+
+    if [[ -n "$cntrprtydesc" && "$cntrprtydesc" != ""null"" ]]; then 
         echo "Found a Counterparty Trx"
-        if [[ "$CNTRPRTYDESC" == *"stamp"* ]]; then
+        if [[ "$cntrprtydesc" == *"stamp"* ]]; then
             echo "FOUND A STAMP"
-            echo "," >> $STAMP_JSON
-            STAMPSTRING=$(echo $CNTRPRTYDESC | sed -n 's/.*stamp:"\?\(.*\)".*/\1/p')  # this captures up to the next double quote
-            # grep -o 'stamp:[^;]*'  - this captures up to the next semicolon
-            cat <<EOF >> $STAMP_JSON
+            echo "," >> $stamp_json
+            stampstring=$(echo $cntrprtydesc | sed -n 's/.*stamp:"\?\(.*\)".*/\1/p')
+            cat <<EOF >> $stamp_json
             {
-                "txid": "$TXID",
-                "asset_longname": "$ASSET_LONGNAME",
-                "asset": "$ASSET",
-                "timestamp": "$TIMESTAMP",
-                "block_index": "$BLOCK_INDEX",
-                "stampstring": "$STAMPSTRING"
+                "txid": "$txid",
+                "asset_longname": "$asset_longname",
+                "asset": "$asset",
+                "timestamp": "$timestamp",
+                "block_index": "$block_index",
+                "stampstring": "$stampstring"
             }
 EOF
         fi
     fi
-    done
+    ((counter++))
+done
+
+echo "Total Number of Transactions Scanned: $counter"
