@@ -4,6 +4,14 @@
 # perhaps we add functionality to launch in subshells and trigger something
 # when the inscription is confirmed? 
 
+
+# manually create a .env file with your variables for the following
+# if these values are not defined we will not upload the inscribe_log to AWS S3
+# the inscribe_log will still be maintained on the host running this script
+# CLOUDFRONT_ID
+# aws_s3_uri=s3://hydren.io
+# aws_s3_dir=inscribed
+
 get_unconfirmed_trx(){
     ord --wallet $wallet_name ${ord_args} wallet transactions | grep -E '\s0$' | awk '{ print $1 }' | uniq
 }
@@ -117,7 +125,7 @@ skipcheck=false
 
 while [[ $1 =~ ^- ]]; do
     case $1 in
-	    "--check-fee"|"-cf")
+	"--check-fee"|"-cf")
             get_fee_rates
             display_fee_rates
 	    exit 0
