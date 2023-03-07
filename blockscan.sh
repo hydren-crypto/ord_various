@@ -18,6 +18,7 @@ stamp_json=stamp.json
 blockhash=$(bitcoin-cli getblockhash 779652)
 currentblock=$(bitcoin-cli getblockcount)
 lastblock="779652"
+newjson=false
 source ${script_dir}/.env 2> /dev/null
 
 # open JSON for editing
