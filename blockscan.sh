@@ -3,6 +3,23 @@
 # This script scans Bitcoin transactions for Counterparty transactions that contain
 # a description field containing / bgins with STAMP:
 
+# function to scan the stamp_json variable and find the highest stamp # and output the value
+# if null then return 0
+fetch_last_stamp(){
+    if [[ -f $stamp_json ]]; then
+        laststamp=$(jq '.[-1].stamp' $stamp_json)
+        if [[ -z $laststamp ]]; then
+            laststamp=0
+        fi
+    else
+        laststamp=0
+    fi
+}
+
+invalidate_s3_file(){
+    aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_ID --paths "{$1}"
+}
+
 prep_json_to_log(){
     sed -i '/\]/d' ${stamp_json} # Strip trailing ]
     echo "," >> ${stamp_json} # add comma for next entry
@@ -14,11 +31,14 @@ send_file_to_aws(){  # ORIGINAL_NAME  TARGET_NAME
 
 logfile=stamp_scan.log
 stamp_json=stamp.json
-blockhash=$(bitcoin-cli getblockhash 779652)
-currentblock=$(bitcoin-cli getblockcount)
-lastblock="779652"
+aws_s3_dir=stamps
+
+firstblock=779652 # first block with a stamp
+scan_to_block=$(bitcoin-cli getblockcount)
+block=$firstblock
 newjson=false
 source ${script_dir}/.env 2> /dev/null
+fetch_last_stamp
 
 # open JSON for editing
 if [ -f ${stamp_json} ]; then
@@ -29,49 +49,71 @@ else
     newjson=true
 fi
 
-#while [ $lastblock -lt $currentblock ]; do
+while [ $block -lt $scan_to_block ]; do
 
-block=$lastblock
-txids=$(bitcoin-cli getblock  $blockhash | jq -r '.tx[]')
-#txids=$(bitcoin-cli listsinceblock  $blockhash | jq -r '.transactions[].txid')
-counter=0
+    blockhash=$(bitcoin-cli getblockhash $block)
+    txids=$(bitcoin-cli getblock  $blockhash | jq -r '.tx[]')
+    txs_in_block=$(bitcoin-cli getblock  $blockhash | jq -r '.tx[]' | wc -l)
+    #txids=$(bitcoin-cli listsinceblock  $blockhash | jq -r '.transactions[].txid')
+    trx_counter=0
 
-for txid in $txids
-do
-    txid=17686488353b65b128d19031240478ba50f1387d0ea7e5f188ea7fda78ea06f4
-    cntrprty_data=$(curl -s https://xchain.io/api/tx/$txid)
-    cntrprtydesc=$(echo $cntrprty_data | jq '.description?' | tr -d \")
-    timestamp=$(echo $cntrprty_data | jq '.timestamp' | tr -d \")
-    block_index=$(echo $cntrprty_data | jq '.block_index' | tr -d \")
-    asset_longname=$(echo $cntrprty_data | jq '.asset_longname' | tr -d \")
-    asset=$(echo $cntrprty_data | jq '.asset' | tr -d \")
+    if [[ $laststamp == 0 ]]; then
+        block=$firstblock
+    fi
 
-    if [[ -n "$cntrprtydesc" && "$cntrprtydesc" != ""null"" ]]; then 
-        echo "Found a Counterparty Trx"
-        if [[ "$cntrprtydesc" == *"stamp"* ]]; then
-            echo "FOUND A STAMP WITH STAMP: prefix"
-            if [[ "$newjson" == true ]]; then
-                newjson=false
-            else
-                prep_json_to_log
-            fi
-            stampstring=$cntrprtydesc
-            stampstring=$(echo $cntrprtydesc | awk -F "stamp:" '{print $2}')
-            cat <<EOF >> $stamp_json
+    for txid in $txids
+    do
+        # txid=17686488353b65b128d19031240478ba50f1387d0ea7e5f188ea7fda78ea06f4
+        cntrprty_data=$(curl -s https://xchain.io/api/tx/$txid)
+        cntrprtydesc=$(echo $cntrprty_data | jq '.description?' | tr -d \")
+        timestamp=$(echo $cntrprty_data | jq '.timestamp' | tr -d \")
+        block_index=$(echo $cntrprty_data | jq '.block_index' | tr -d \")
+        asset_longname=$(echo $cntrprty_data | jq '.asset_longname' | tr -d \")
+        asset=$(echo $cntrprty_data | jq '.asset' | tr -d \")
+
+        if [[ -n "$cntrprtydesc" && "$cntrprtydesc" != ""null"" ]]; then 
+            echo "Found a Counterparty Trx"
+            if [[ "$cntrprtydesc" == *"stamp"* ]]; then
+                echo "FOUND A STAMP WITH STAMP: prefix"
+                ((laststamp++))
+                if [[ "$newjson" == true ]]; then
+                    newjson=false
+                else
+                    prep_json_to_log
+                fi
+                stampstring=$cntrprtydesc
+                stampstring=$(echo $cntrprtydesc | awk -F "stamp:" '{print $2}')
+                # convert the base64 value of $stampstring to RAW, determine the file type and save the file
+                # iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==
+                echo $stampstring | base64 -d > stamp_${laststamp}.tmp
+                base64 --decode <<< $stampstring > stamp_${laststamp}.out
+                suffix=$(file stamp_${laststamp}.out | cut -d ' ' -f2)
+                mv stamp_${laststamp}.out stamp_${laststamp}.$suffix
+                send_file_to_aws stamp_${laststamp}.$suffix
+                cat <<EOF >> $stamp_json
     {
         "txid": "$txid",
+        "stamp": "$laststamp",
         "asset_longname": "$asset_longname",
         "asset": "$asset",
         "timestamp": "$timestamp",
         "block_index": "$block_index",
-        "stampstring": "$stampstring"
+        "stampstring": "$stampstring",
+        "stamp_url": "https://www.hydren.io/${aws_s3_dir}/stamp_${laststamp}.$suffix"
     }
-]
 EOF
-        fi
-    fi
-    ((counter++))
-done
 
-echo "Total Number of Transactions Scanned: $counter"
-echo "]" > $stamp_json
+            fi
+        fi
+        ((trx_counter++))
+        send_file_to_aws $stamp_json
+        invalidate_s3_file /${aws_s3_dir}/$stamp_json
+    done
+
+    echo "Total Number of transactions scanned in block $block: $counter"
+    echo "Total transactions in block $block: $txs_in_block"
+    ((block++))
+    # if we don't scan all transactions in a block then we need to log this in case the script aborts and a block isn't finished
+    echo "]" > $stamp_json
+
+done
