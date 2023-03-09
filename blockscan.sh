@@ -107,12 +107,12 @@ while [ $block -lt $scan_to_block ]; do
         "stamp_url": "https://www.hydren.io/${aws_s3_dir}/stamp_${laststamp}.$suffix"
     }
 EOF
-
+                send_file_to_aws $stamp_json
+                invalidate_s3_file /${aws_s3_dir}/$stamp_json
             fi
         fi
         ((trx_counter++))
-        send_file_to_aws $stamp_json
-        invalidate_s3_file /${aws_s3_dir}/$stamp_json
+
     done
 
     echo "Total trx scanned in block $block: $counter"
