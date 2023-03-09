@@ -26,7 +26,7 @@ prep_json_to_log(){
 }
 
 send_file_to_aws(){  # ORIGINAL_NAME  TARGET_NAME
-    aws s3 cp "${1}" "${aws_s3_uri}"/"${aws_s3_dir}"/${2:=$1}
+    aws s3 cp "${1}" "${aws_s3_uri}"/"${aws_s3_dir}"/$1
 }
 
 logfile=stamp_scan.log
