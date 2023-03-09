@@ -67,7 +67,7 @@ while [ $block -lt $scan_to_block ]; do
 
     for txid in $txids
     do
-        printf ".\n"
+        printf "."
         # txid=17686488353b65b128d19031240478ba50f1387d0ea7e5f188ea7fda78ea06f4
         cntrprty_data=$(curl -s https://xchain.io/api/tx/$txid)
         cntrprtydesc=$(echo $cntrprty_data | jq '.description?' | tr -d \")
@@ -77,9 +77,9 @@ while [ $block -lt $scan_to_block ]; do
         asset=$(echo $cntrprty_data | jq '.asset' | tr -d \")
 
         if [[ -n "$cntrprtydesc" && "$cntrprtydesc" != ""null"" ]]; then 
-            echo "Found a Counterparty Trx"
+            echo "..found a CNTRPRTY TXID: $txid"
             if [[ "$cntrprtydesc" == *"stamp"* ]]; then
-                echo "FOUND A STAMP WITH STAMP: prefix"
+                echo "FOUND A STAMP TXID: $txid"
                 ((laststamp++))
                 if [[ "$newjson" == true ]]; then
                     newjson=false
