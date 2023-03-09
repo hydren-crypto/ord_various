@@ -33,7 +33,8 @@ logfile=stamp_scan.log
 stamp_json=stamp.json
 aws_s3_dir=stamps
 
-firstblock=779652 # first block with a stamp
+source lastblock.log 2> /dev/null
+firstblock=${lastblock:=779652}  # 779652 is assumed to be the first block with a stamp trx for testing
 scan_to_block=$(bitcoin-cli getblockcount)
 block=$firstblock
 newjson=false
@@ -117,3 +118,4 @@ EOF
     echo "]" > $stamp_json
 
 done
+echo "lastblock_scanned=$block" > lastblock.log
