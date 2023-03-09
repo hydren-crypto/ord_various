@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source .env 2> /dev/null
+
 # This script scans Bitcoin transactions for Counterparty transactions that contain
 # a description field containing / bgins with STAMP:
 
