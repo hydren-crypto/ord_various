@@ -50,8 +50,9 @@ else
     newjson=true
 fi
 
+echo "Scanning from block $firstblock to $scan_to_block"
 while [ $block -lt $scan_to_block ]; do
-
+    printf "scanning $block"
     blockhash=$(bitcoin-cli getblockhash $block)
     txids=$(bitcoin-cli getblock  $blockhash | jq -r '.tx[]')
     txs_in_block=$(bitcoin-cli getblock  $blockhash | jq -r '.tx[]' | wc -l)
@@ -64,6 +65,7 @@ while [ $block -lt $scan_to_block ]; do
 
     for txid in $txids
     do
+        printf ".\n"
         # txid=17686488353b65b128d19031240478ba50f1387d0ea7e5f188ea7fda78ea06f4
         cntrprty_data=$(curl -s https://xchain.io/api/tx/$txid)
         cntrprtydesc=$(echo $cntrprty_data | jq '.description?' | tr -d \")
@@ -111,8 +113,8 @@ EOF
         invalidate_s3_file /${aws_s3_dir}/$stamp_json
     done
 
-    echo "Total Number of transactions scanned in block $block: $counter"
-    echo "Total transactions in block $block: $txs_in_block"
+    echo "Total trx scanned in block $block: $counter"
+    echo "Total trx in block $block: $txs_in_block"
     ((block++))
     # if we don't scan all transactions in a block then we need to log this in case the script aborts and a block isn't finished
     echo "]" > $stamp_json
