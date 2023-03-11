@@ -25,13 +25,16 @@ def get_flocks(block_indexes):
     "id": 0
   }
   response = requests.post(url, data=json.dumps(payload), headers=headers, auth=auth)
-  output = (response.text)
-  dumps = json.dumps(output)
-#  data = json.loads(dumps.encode('utf-8'))
-  data = json.loads(dumps)
-  print(data)
-  #result = data["result"]
+  output = response.text
+  data = json.loads(output)
+  result = data["result"]
 
+  for i in range(len(result)):
+    block_data = result[i]
+    messages = block_data["_messages"]
+    for message in messages:
+      if message["category"] == "issuances":
+        pprint.pprint(message)
 
 #get_flocks(list(range(779652, blockend)))
 
