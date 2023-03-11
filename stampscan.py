@@ -1,3 +1,4 @@
+
 import json
 import os
 import requests
@@ -34,7 +35,10 @@ def get_flocks(block_indexes):
     messages = block_data["_messages"]
     for message in messages:
       if message["category"] == "issuances":
-        output_list.append(message)
+        bindings = message["bindings"]
+        description = json.loads(bindings)["description"]
+        if "stamp:" in description.lower():
+          output_list.append(message)
   json_string = json.dumps(output_list, indent=4)
   print(json_string)
 
