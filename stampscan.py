@@ -28,13 +28,15 @@ def get_flocks(block_indexes):
   output = response.text
   data = json.loads(output)
   result = data["result"]
-
+  output_list = []
   for i in range(len(result)):
     block_data = result[i]
     messages = block_data["_messages"]
     for message in messages:
       if message["category"] == "issuances":
-        pprint.pprint(message)
+        output_list.append(message)
+  json_string = json.dumps(output_list, indent=4)
+  print(json_string)
 
 #get_flocks(list(range(779652, blockend)))
 
