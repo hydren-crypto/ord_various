@@ -1,3 +1,4 @@
+
 import json
 import os
 import requests
@@ -37,10 +38,23 @@ def get_flocks(block_indexes):
         bindings = message["bindings"]
         description = json.loads(bindings)["description"]
         if "stamp:" in description.lower():
-          message["bindings"] = json.loads(bindings)
+          stamp_data = description.split("Stamp:")[1].strip() if len(description.split("Stamp:")) > 1 else None # add this line
+          #stamp_data = description.split("Stamp:")[1].strip() # add this line
+          bindings = json.loads(bindings)
+          message["bindings"] = {
+            "description": bindings["description"],
+            "tx_hash": bindings["tx_hash"],
+            "asset": bindings["asset"],
+            "asset_longname": bindings["asset_longname"],
+            "block_index": bindings["block_index"],
+            "status": bindings["status"],
+            "tx_index": bindings["tx_index"],
+            "stamp_data": stamp_data # add this line
+          }
           output_list.append(message)
   json_string = json.dumps(output_list, indent=4)
   print(json_string)
+
 
 #get_flocks(list(range(779652, blockend)))
 
