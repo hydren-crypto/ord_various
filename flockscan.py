@@ -10,7 +10,7 @@ import boto3
 from requests.auth import HTTPBasicAuth
 
 # FIXME: need to check if it's a valid base64 string, otherwise it doesn't count as a stamp - improperly formatted
-# this will exclude the initial tests with text in the string
+# this will exclude the initial tests with text in the string - this can be tested with stamps prior to block 779652
 
 aws_cloudfront_distribution_id = ""
 cntrprty_user = "rpc"
@@ -46,14 +46,11 @@ def convert_base64_to_file(base64_string, item):
     return filename
 
 def invalidate_s3_file(file_path):
-    print(f"aws cloudfront create-invalidation --distribution-id '{aws_cloudfront_distribution_id}' --paths '{file_path}'")
     command = f"aws cloudfront create-invalidation --distribution-id {aws_cloudfront_distribution_id} --paths '{file_path}' > /dev/null 2>&1"
     subprocess.run(command, shell=True)
 
 def upload_file_to_s3_aws_cli(file_path, bucket_name, s3_path):
-    print(["aws", "s3", "cp", file_path, f"s3://{bucket_name}/{s3_path}"])
     subprocess.run(["aws", "s3", "cp", file_path, f"s3://{bucket_name}/{s3_path}"], stdout=subprocess.DEVNULL)
-    #subprocess.run(["aws"/, "s3", "cp", file_path, f"s3://{bucket_name}/{s3_path}"])
     return True
 
 def convert_json_array_files(json_string_array, bucket_name, s3_path):
