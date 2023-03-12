@@ -1,4 +1,5 @@
 import json
+import time
 import base64
 import magic
 import os
@@ -8,15 +9,29 @@ import pprint
 import boto3
 from requests.auth import HTTPBasicAuth
 
-CNTRPRTY_PASSWORD = "rpc"
+# FIXME: need to check if it's a valid base64 string, otherwise it doesn't count as a stamp - improperly formatted
+# this will exclude the initial tests with text in the string
+
+aws_cloudfront_distribution_id = ""
+cntrprty_user = "rpc"
+cntrprty_password = "rpc"
+
+if os.path.exists('private_vars.py'):
+    from private_vars import *
+
+aws_s3_bucketname = "hydren.io"
+aws_s3_dir = "stamps/"
+
+json_output = "stamp.json"
 
 blockstart = 779652
 blockend = int(subprocess.check_output(['fednode', 'exec', 'bitcoin', 'bitcoin-cli', 'getblockcount']).decode('utf-8'))
 blockrange = list(range(blockstart,blockend))
 
+# API VARS
 url = "http://localhost:4000/api/"
 headers = {'content-type': 'application/json'}
-auth = HTTPBasicAuth('rpc', CNTRPRTY_PASSWORD)
+auth = HTTPBasicAuth(cntrprty_user, cntrprty_password)
 
 
 def convert_base64_to_file(base64_string, item):
@@ -24,18 +39,21 @@ def convert_base64_to_file(base64_string, item):
     file_type = magic.from_buffer(binary_data, mime=True)
     _, file_extension = file_type.split("/")
     tx_hash = item.get("tx_hash")
-    with open(f"{tx_hash}.{file_extension}", "wb") as f:
+    filename = f"{tx_hash}.{file_extension}"
+    with open(filename, "wb") as f:
         f.write(binary_data)
-    return f"{tx_hash}.{file_extension}"
+    item["stamp_url"] = "https://" + aws_s3_bucketname + "/" + aws_s3_dir  + filename
+    return filename
+
+def invalidate_s3_file(file_path):
+    print(f"aws cloudfront create-invalidation --distribution-id '{aws_cloudfront_distribution_id}' --paths '{file_path}'")
+    command = f"aws cloudfront create-invalidation --distribution-id {aws_cloudfront_distribution_id} --paths '{file_path}' > /dev/null 2>&1"
+    subprocess.run(command, shell=True)
 
 def upload_file_to_s3_aws_cli(file_path, bucket_name, s3_path):
     print(["aws", "s3", "cp", file_path, f"s3://{bucket_name}/{s3_path}"])
-    subprocess.run(["aws", "s3", "cp", file_path, f"s3://{bucket_name}/{s3_path}"])
-    return True
-
-def upload_file_to_s3(file_path, bucket_name, s3_path):
-    s3 = boto3.client('s3')
-    s3.upload_file(file_path, bucket_name, s3_path)
+    subprocess.run(["aws", "s3", "cp", file_path, f"s3://{bucket_name}/{s3_path}"], stdout=subprocess.DEVNULL)
+    #subprocess.run(["aws"/, "s3", "cp", file_path, f"s3://{bucket_name}/{s3_path}"])
     return True
 
 def convert_json_array_files(json_string_array, bucket_name, s3_path):
@@ -44,8 +62,7 @@ def convert_json_array_files(json_string_array, bucket_name, s3_path):
         base64_string = item.get("stamp_base64")
         file_path = convert_base64_to_file(base64_string, item)
         upload_file_to_s3_aws_cli(file_path, bucket_name, s3_path)
-    return True
-
+    return json.dumps(json_dict)
 
 def get_flocks(block_indexes):
   payload = {
@@ -93,14 +110,13 @@ def get_flocks(block_indexes):
     message["stamp"] = i
     i += 1
 
-  # Print the formatted JSON string
   json_string = json.dumps(sorted_list, indent=4)
-  #print(json_string)
 
   flattened_list = []
   for message in sorted_list:
       flattened_dict = {}
       #flattened_dict["description"] = message["bindings"]["description"]
+      flattened_dict["stamp"] = message["stamp"]
       flattened_dict["message_index"] = message["message_index"]
       flattened_dict["block_index"] = message["block_index"]
       flattened_dict["tx_hash"] = message["bindings"]["tx_hash"]
@@ -111,22 +127,28 @@ def get_flocks(block_indexes):
       flattened_dict["stamp_base64"] = message["bindings"]["stamp_base64"]
       flattened_list.append(flattened_dict)
 
-  # Print the formatted JSON string
   #json_string = json.dumps(flattened_list, indent=4)
   #print(json_string)
 
   return flattened_list # Return the flattened list
 
-
-# Combine the results of all the calls into one list
 combined_list = []
 for i in range(0, len(blockrange), 249):
-      combined_list += get_flocks(blockrange[i:i+249])
+    combined_list += get_flocks(blockrange[i:i+249])
 
-# Print the combined list
+i = 0
+for message in combined_list:
+  message["stamp"] = i
+  i += 1
+
+
 json_string = json.dumps(combined_list, indent=4)
-#print(json_string)
+final_array_with_url=(convert_json_array_files(json_string,aws_s3_bucketname,aws_s3_dir))
+print(final_array_with_url)
 
-convert_json_array_files(json_string,"hydren.io","stamps/")
+with open(json_output, 'w') as f:
+    f.write(final_array_with_url)
 
-print(json_string)
+if aws_s3_bucketname != "" and aws_s3_dir != "" and aws_cloudfront_distribution_id != "":
+    upload_file_to_s3_aws_cli(json_output,aws_s3_bucketname,aws_s3_dir)
+    invalidate_s3_file("/" + aws_s3_dir + json_output)
