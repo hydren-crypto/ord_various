@@ -10,7 +10,7 @@ CNTRPRTY_PASSWORD = "rpc"
 
 blockstart = 779652
 blockend = int(subprocess.check_output(['fednode', 'exec', 'bitcoin', 'bitcoin-cli', 'getblockcount']).decode('utf-8'))
-
+blockrange = list(range(blockstart,blockend))
 
 url = "http://localhost:4000/api/"
 headers = {'content-type': 'application/json'}
@@ -38,7 +38,9 @@ def get_flocks(block_indexes):
         bindings = message["bindings"]
         description = json.loads(bindings)["description"]
         if "stamp:" in description.lower():
-          stamp_data = description.split("Stamp:")[1].strip() if len(description.split("Stamp:")) > 1 else None # add this line                                                                                       
+          
+          stamp_search = description.lower().split("stamp:")[1]
+          stamp_base64 = stamp_search.strip() if len(stamp_search) > 1 else None
           bindings = json.loads(bindings)
           message["bindings"] = {
             "description": bindings["description"],
@@ -48,7 +50,7 @@ def get_flocks(block_indexes):
             "block_index": bindings["block_index"],
             "status": bindings["status"],
             "tx_index": bindings["tx_index"],
-            "stamp_data": stamp_data # add this line                                                       
+            "stamp_base64": stamp_base64 # add this line                                                       
           }
           output_list.append(message)
 
@@ -68,6 +70,7 @@ def get_flocks(block_indexes):
   flattened_list = []
   for message in sorted_list:
       flattened_dict = {}
+      #flattened_dict["description"] = message["bindings"]["description"]
       flattened_dict["message_index"] = message["message_index"]
       flattened_dict["block_index"] = message["block_index"]
       flattened_dict["tx_hash"] = message["bindings"]["tx_hash"]
@@ -75,17 +78,21 @@ def get_flocks(block_indexes):
       flattened_dict["asset_longname"] = message["bindings"]["asset_longname"]
       flattened_dict["block_index"] = message["bindings"]["block_index"]
       flattened_dict["tx_index"] = message["bindings"]["tx_index"]
-      flattened_dict["stamp_data"] = message["bindings"]["stamp_data"]
+      flattened_dict["stamp_base64"] = message["bindings"]["stamp_base64"]
       flattened_list.append(flattened_dict)
-  
+
   # Print the formatted JSON string
-  json_string = json.dumps(flattened_list, indent=4)
-  print(json_string)
+  #json_string = json.dumps(flattened_list, indent=4)
+  #print(json_string)
+
+  return flattened_list # Return the flattened list
 
 
-#get_flocks(list(range(779652, blockend)))   
-
-blockrange = list(range(blockstart,blockend))
-
+# Combine the results of all the calls into one list
+combined_list = []
 for i in range(0, len(blockrange), 249):
-      get_flocks(blockrange[i:i+249])
+      combined_list += get_flocks(blockrange[i:i+249])
+
+# Print the combined list
+json_string = json.dumps(combined_list, indent=4)
+print(json_string)
