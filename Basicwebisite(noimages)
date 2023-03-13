@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Displaying JSON data on a website</title>
+</head>
+<body>
+	<h1>JSON Data</h1>
+	<pre id="json-container"></pre>
+	<script>
+		fetch('https://cors-anywhere.herokuapp.com/http://hydren.io/stamps/stamp.json')
+			.then(response => response.json())
+			.then(data => {
+				const jsonContainer = document.getElementById('json-container');
+				jsonContainer.innerText = JSON.stringify(data, null, 2); // 2 is the number of spaces for indentation
+			})
+			.catch(error => console.error(error));
+	</script>
+</body>
+</html>
