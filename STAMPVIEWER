@@ -4,76 +4,69 @@
 	<title>Displaying JSON data on a website</title>
 	<style>
 		body {
-			font-family: Arial, sans-serif;
-			margin: 0;
-			padding: 0;
-		}
-		h1 {
-			margin: 20px;
-		}
-		.row {
-			display: flex;
-			flex-wrap: wrap;
-			margin: 0 -10px;
+			background-color: black;
+			color: green;
 		}
 		.item {
-			width: 25%;
-			padding: 10px;
-			box-sizing: border-box;
+			display: inline-block;
+			vertical-align: top;
+			text-align: center;
+			margin: 20px;
 		}
-		.item pre {
+		pre {
 			white-space: pre-wrap;
 			word-wrap: break-word;
 			background-color: #f8f8f8;
 			padding: 10px;
 			border-radius: 5px;
 			border: 1px solid #ccc;
-			font-family: monospace;
+			font-family: ubuntu;
 			font-size: 14px;
 			line-height: 1.5;
 			margin: 10px 0;
 		}
-		.item img {
-			display: block;
-			margin: 10px auto;
+		img {
 			max-width: 100%;
 			height: auto;
-			object-fit: contain;
+			display: block;
+			margin: 10px auto;
 			image-rendering: pixelated;
 			image-rendering: -moz-crisp-edges;
 			image-rendering: crisp-edges;
-			width: 210px;
-			height: 210px;
+			background-color: transparent;
 		}
 	</style>
 </head>
 <body>
-	<h1>JSON Data</h1>
-	<div id="data-container"></div>
+	<h1 style="text-align:center;">STAMPS PROTOCOL</h1>
+	<div id="data-container" style="text-align:center;"></div>
 	<script>
 		fetch('https://cors-anywhere.herokuapp.com/http://hydren.io/stamps/stamp.json')
 			.then(response => response.json())
 			.then(data => {
+				const dataContainer = document.getElementById('data-container');
 				data.reverse().forEach((item, index) => {
-					const dataContainer = document.getElementById('data-container');
-					if (index % 4 === 0) {
-						const row = document.createElement('div');
-						row.classList.add('row');
-						dataContainer.appendChild(row);
-					}
-					const row = dataContainer.lastChild;
 					const itemContainer = document.createElement('div');
 					itemContainer.classList.add('item');
 					if (item.stamp_url) {
 						const img = document.createElement('img');
 						img.src = item.stamp_url;
-						img.alt = `Stamp ${item.stamp}`;
+						img.width = 210;
+						img.height = 210;
+						img.style.objectFit = 'contain';
+						img.style.imageRendering = 'pixelated';
+						img.style.imageRendering = '-moz-crisp-edges';
+						img.style.imageRendering = 'crisp-edges';
+						img.style.backgroundColor = 'transparent';
 						itemContainer.appendChild(img);
 					}
 					const jsonContainer = document.createElement('pre');
 					jsonContainer.innerText = `"stamp": ${item.stamp}`;
 					itemContainer.appendChild(jsonContainer);
-					row.appendChild(itemContainer);
+					dataContainer.appendChild(itemContainer);
+					if ((index + 1) % 4 === 0) {
+						dataContainer.appendChild(document.createElement('br'));
+					}
 				});
 			})
 			.catch(error => console.error(error));
