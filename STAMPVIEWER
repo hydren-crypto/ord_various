@@ -6,6 +6,8 @@
 		body {
 			background-color: black;
 			color: green;
+			font-family: Courier New;
+			text-transform: uppercase;
 		}
 		.item {
 			display: inline-block;
@@ -16,12 +18,12 @@
 		pre {
 			white-space: pre-wrap;
 			word-wrap: break-word;
-			background-color: #f8f8f8;
-			padding: 10px;
+			background-color: #f8f822;
+			padding: 5px;
 			border-radius: 5px;
 			border: 1px solid #ccc;
-			font-family: ubuntu;
-			font-size: 14px;
+			font-family: Courier New;
+			font-size: 21px;
 			line-height: 1.5;
 			margin: 10px 0;
 		}
@@ -29,16 +31,28 @@
 			max-width: 100%;
 			height: auto;
 			display: block;
-			margin: 10px auto;
+			margin: 2px auto;
 			image-rendering: pixelated;
 			image-rendering: -moz-crisp-edges;
 			image-rendering: crisp-edges;
-			background-color: transparent;
+		}
+		button {
+			background-color: #dc6e16;
+			color: white;
+			border: none;
+			padding: 10px 20px;
+			border-radius: 5px;
+			font-size: 18px;
+			cursor: pointer;
+			margin-top: 10px;
+		}
+		button:hover {
+			background-color: #ff9000;
 		}
 	</style>
 </head>
 <body>
-	<h1 style="text-align:center;">STAMPS PROTOCOL</h1>
+	<h1 style="text-align:center;">STAMPchain.io</h1>
 	<div id="data-container" style="text-align:center;"></div>
 	<script>
 		fetch('https://cors-anywhere.herokuapp.com/http://hydren.io/stamps/stamp.json')
@@ -57,12 +71,16 @@
 						img.style.imageRendering = 'pixelated';
 						img.style.imageRendering = '-moz-crisp-edges';
 						img.style.imageRendering = 'crisp-edges';
-						img.style.backgroundColor = 'transparent';
+						img.style.backgroundColor = '#dc6e16';
 						itemContainer.appendChild(img);
 					}
-					const jsonContainer = document.createElement('pre');
-					jsonContainer.innerText = `"stamp": ${item.stamp}`;
-					itemContainer.appendChild(jsonContainer);
+					const stampInfo = document.createElement('pre');
+					stampInfo.innerText = `Stamp: ${item.stamp}\nTx Index: ${item.tx_index}`;
+					itemContainer.appendChild(stampInfo);
+					const viewMoreBtn = document.createElement('button');
+					viewMoreBtn.innerText = 'View More';
+					viewMoreBtn.addEventListener('click', () => window.open(`https://xchain.io/asset/${item.asset}`, '_blank'));
+					itemContainer.appendChild(viewMoreBtn);
 					dataContainer.appendChild(itemContainer);
 					if ((index + 1) % 4 === 0) {
 						dataContainer.appendChild(document.createElement('br'));
@@ -73,3 +91,4 @@
 	</script>
 </body>
 </html>
+
