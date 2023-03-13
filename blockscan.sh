@@ -26,6 +26,10 @@ prep_json_to_log(){
     sed -i '/\]/d' ${stamp_json} # Strip trailing ]
     echo "," >> ${stamp_json} # add comma for next entry
 }
+prep_json_to_log(){
+    sed -i '/\]/d' ${stamp_json} # Strip trailing ]
+    echo "," >> ${stamp_json} # add comma for next entry
+}
 
 send_file_to_aws(){  # ORIGINAL_NAME  TARGET_NAME
     aws s3 cp "${1}" "${aws_s3_uri}"/"${aws_s3_dir}"/$1
