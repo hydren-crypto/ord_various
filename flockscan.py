@@ -1,3 +1,5 @@
+
+
 import json
 import time
 import base64
@@ -6,7 +8,6 @@ import os
 import requests
 import subprocess
 import pprint
-import boto3
 from requests.auth import HTTPBasicAuth
 
 # FIXME: need to check if it's a valid base64 string, otherwise it doesn't count as a stamp - improperly formatted
@@ -19,8 +20,8 @@ cntrprty_password = "rpc"
 if os.path.exists('private_vars.py'):
     from private_vars import *
 
-aws_s3_bucketname = "hydren.io"
-aws_s3_dir = "stamps/"
+aws_s3_bucketname = "stampscan.io"
+aws_s3_dir = "/"
 
 json_output = "stamp.json"
 
@@ -112,7 +113,7 @@ def get_flocks(block_indexes):
   flattened_list = []
   for message in sorted_list:
       flattened_dict = {}
-      #flattened_dict["description"] = message["bindings"]["description"]
+      # flattened_dict["description"] = message["bindings"]["description"]
       flattened_dict["stamp"] = message["stamp"]
       flattened_dict["message_index"] = message["message_index"]
       flattened_dict["block_index"] = message["block_index"]
@@ -121,7 +122,7 @@ def get_flocks(block_indexes):
       flattened_dict["asset_longname"] = message["bindings"]["asset_longname"]
       flattened_dict["block_index"] = message["bindings"]["block_index"]
       flattened_dict["tx_index"] = message["bindings"]["tx_index"]
-      flattened_dict["stamp_base64"] = message["bindings"]["stamp_base64"]
+      # flattened_dict["stamp_base64"] = message["bindings"]["stamp_base64"]
       flattened_list.append(flattened_dict)
 
   #json_string = json.dumps(flattened_list, indent=4)
