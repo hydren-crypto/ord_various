@@ -20,8 +20,8 @@ cntrprty_password = "rpc"
 if os.path.exists('private_vars.py'):
     from private_vars import *
 
-aws_s3_bucketname = "stampscan.io"
-aws_s3_dir = "/"
+aws_s3_bucketname = "stampchain.io"
+aws_s3_dir = "stamps/"
 
 json_output = "stamp.json"
 
@@ -37,6 +37,9 @@ auth = HTTPBasicAuth(cntrprty_user, cntrprty_password)
 
 def convert_base64_to_file(base64_string, item):
     binary_data = base64.b64decode(base64_string)
+    if type(base64_string) != str:
+        print(base64_string)
+        return "invalid_base64"
     file_type = magic.from_buffer(binary_data, mime=True)
     _, file_extension = file_type.split("/")
     tx_hash = item.get("tx_hash")
@@ -47,8 +50,8 @@ def convert_base64_to_file(base64_string, item):
     return filename
 
 def invalidate_s3_file(file_path):
-    command = f"aws cloudfront create-invalidation --distribution-id {aws_cloudfront_distribution_id} --paths '{file_path}' > /dev/null 2>&1"
-    subprocess.run(command, shell=True)
+    command = ["aws", "cloudfront", "create-invalidation", "--distribution-id", aws_cloudfront_distribution_id, "--paths", file_path]
+    subprocess.run(command, stdout=subprocess.DEVNULL)
 
 def upload_file_to_s3_aws_cli(file_path, bucket_name, s3_path):
     subprocess.run(["aws", "s3", "cp", file_path, f"s3://{bucket_name}/{s3_path}"], stdout=subprocess.DEVNULL)
@@ -59,7 +62,10 @@ def convert_json_array_files(json_string_array, bucket_name, s3_path):
     for item in json_dict:
         base64_string = item.get("stamp_base64")
         file_path = convert_base64_to_file(base64_string, item)
-        upload_file_to_s3_aws_cli(file_path, bucket_name, s3_path)
+        if upload_file_to_s3_aws_cli(file_path, bucket_name, s3_path):
+            os.remove(file_path)
+        
+
     return json.dumps(json_dict)
 
 def get_flocks(block_indexes):
@@ -122,7 +128,7 @@ def get_flocks(block_indexes):
       flattened_dict["asset_longname"] = message["bindings"]["asset_longname"]
       flattened_dict["block_index"] = message["bindings"]["block_index"]
       flattened_dict["tx_index"] = message["bindings"]["tx_index"]
-      # flattened_dict["stamp_base64"] = message["bindings"]["stamp_base64"]
+      flattened_dict["stamp_base64"] = message["bindings"]["stamp_base64"]
       flattened_list.append(flattened_dict)
 
   #json_string = json.dumps(flattened_list, indent=4)
@@ -148,5 +154,7 @@ with open(json_output, 'w') as f:
     f.write(final_array_with_url)
 
 if aws_s3_bucketname != "" and aws_s3_dir != "" and aws_cloudfront_distribution_id != "":
-    upload_file_to_s3_aws_cli(json_output,aws_s3_bucketname,aws_s3_dir)
+    upload_file_to_s3_aws_cli(json_output,aws_s3_bucketname,"")
+    # can purge local file upon successful upload
+    # os.remove(json_output)
     invalidate_s3_file("/" + aws_s3_dir + json_output)
