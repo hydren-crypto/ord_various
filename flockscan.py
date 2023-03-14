@@ -5,36 +5,47 @@ import time
 import base64
 import magic
 import os
+import boto3
 import requests
 import subprocess
 import pprint
 from requests.auth import HTTPBasicAuth
 
-# FIXME: need to check if it's a valid base64 string, otherwise it doesn't count as a stamp - improperly formatted
-# this will exclude the initial tests with text in the string - this can be tested with stamps prior to block 779652
+# FIXME: need to check if stamp_base64 is a valid base64 string, if not it won't become a stamp
+# this will exclude the initial tests with text in the string suck as stamp:"data:image/png;base64,[base64]" 
+# this exclusion / malformatting can be tested with stamps prior to block 779652
 
 aws_cloudfront_distribution_id = ""
 cntrprty_user = "rpc"
 cntrprty_password = "rpc"
+cntrprty_api_url = "http://api.counterparty.io:4000/api/"
 
+# import private vars, may over-ride the above
 if os.path.exists('private_vars.py'):
     from private_vars import *
 
+# if the aws_cloudfront_distribution_id is not set these will be ignored
 aws_s3_bucketname = "stampchain.io"
 aws_s3_dir = "stamps/"
 
+# saved in script dir
 json_output = "stamp.json"
 
+# the first official stamps
 blockstart = 779652
 blockend = int(subprocess.check_output(['fednode', 'exec', 'bitcoin', 'bitcoin-cli', 'getblockcount']).decode('utf-8'))
 blockrange = list(range(blockstart,blockend))
 
 # API VARS
-url = "http://localhost:4000/api/"
 headers = {'content-type': 'application/json'}
 auth = HTTPBasicAuth(cntrprty_user, cntrprty_password)
 
-
+s3_client = boto3.client(
+    's3',
+    aws_access_key_id=aws_access_key_id,
+    aws_secret_access_key=aws_secret_access_key
+    ) 
+       
 def convert_base64_to_file(base64_string, item):
     binary_data = base64.b64decode(base64_string)
     if type(base64_string) != str:
@@ -48,6 +59,18 @@ def convert_base64_to_file(base64_string, item):
         f.write(binary_data)
     item["stamp_url"] = "https://" + aws_s3_bucketname + "/" + aws_s3_dir  + filename
     return filename
+
+def get_s3_objects(bucket_name, s3_client):
+    result = []
+    paginator = s3_client.get_paginator('list_objects_v2')
+    pages = paginator.paginate(Bucket=bucket_name)
+    
+    for page in pages:
+        if 'Contents' in page:
+            for obj in page['Contents']:
+                result.append(obj['Key'])
+    
+    return result
 
 def invalidate_s3_file(file_path):
     command = ["aws", "cloudfront", "create-invalidation", "--distribution-id", aws_cloudfront_distribution_id, "--paths", file_path]
@@ -77,7 +100,7 @@ def get_flocks(block_indexes):
     "jsonrpc": "2.0",
     "id": 0
   }
-  response = requests.post(url, data=json.dumps(payload), headers=headers, auth=auth)
+  response = requests.post(cntrprty_api_url, data=json.dumps(payload), headers=headers, auth=auth)
   output = response.text
   data = json.loads(output)
   result = data["result"]
