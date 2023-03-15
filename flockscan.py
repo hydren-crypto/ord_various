@@ -205,11 +205,11 @@ unique_assets = {}
 unique_list = []
 
 for message in combined_list:
-    asset = message["asset"]
+    asset = message["bindings"]["asset"]  # Access the "asset" key from the "bindings" object
     if asset not in unique_assets:
         unique_assets[asset] = True
         unique_list.append(message)
-
+        
 # Assign new "stamp" key-value pair to the dictionary
 for i, message in enumerate(unique_list):
     message["stamp"] = i
