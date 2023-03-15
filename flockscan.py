@@ -135,16 +135,17 @@ def parse_json_array_convert_base64_to_file_and_upload(json_string_array, bucket
     json_dict = json.loads(json_string_array)
     for json_component in json_dict:
         base64_string = json_component.get("stamp_base64")
-    if base64_string is not None:
-        file_path = convert_base64_to_file(base64_string, json_component)
-    else:
-        file_path = None  # or any default value that suits your use case
+        if base64_string is not None:
+            file_path = convert_base64_to_file(base64_string, json_component)
+        else:
+            file_path = None  # or any default value that suits your use case
 
-        # file_path = convert_base64_to_file(base64_string, json_component)
-        #upload_file_to_s3(file_path, bucket_name, s3_path + file_path, s3_client)
-        #os.remove(file_path)
+        if file_path:
+            upload_file_to_s3(file_path, bucket_name, s3_path + file_path, s3_client)
+            os.remove(file_path)
 
     return json.dumps(json_dict)
+
 
 def process_messages(messages):
     output_list = []
