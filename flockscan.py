@@ -40,7 +40,8 @@ json_output = "stamp.json"
 
 # the first official stamps
 blockstart = 779652
-blockend = int(subprocess.check_output(['fednode', 'exec', 'bitcoin', 'bitcoin-cli', 'getblockcount']).decode('utf-8'))
+blockend = requests.get('https://blockchain.info/q/getblockcount').json()
+# blockend = int(subprocess.check_output(['fednode', 'exec', 'bitcoin', 'bitcoin-cli', 'getblockcount']).decode('utf-8'))
 blockrange = list(range(blockstart,blockend))
 
 # API VARS
@@ -228,9 +229,10 @@ if aws_secret_access_key != "" and aws_access_key_id != "":
         upload_file_to_s3_boto3(local_file_path, bucket_name, s3_key, s3_client)
 
 
+# upload json file to root dir of s3 bucket
 if aws_s3_bucketname != "" and aws_s3_dir != "" and aws_cloudfront_distribution_id != "":
     # upload_file_to_s3_aws_cli(json_output,aws_s3_bucketname,"")
-    upload_file_to_s3_boto3(json_output,aws_s3_bucketname,aws_s3_dir,s3_client)
+    upload_file_to_s3_boto3(json_output,aws_s3_bucketname,"/" + json_output,s3_client)
     # can purge local file upon successful upload
     # os.remove(json_output)
     invalidate_s3_file("/" + json_output)
