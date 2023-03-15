@@ -18,7 +18,8 @@ aws_secret_access_key = ""
 aws_cloudfront_distribution_id = ""
 cntrprty_user = "rpc"
 cntrprty_password = "rpc"
-cntrprty_api_url = "http://api.counterparty.io:4000/api/"
+cntrprty_api_url = "http://127.0.0.1:4000/api/"
+blockchain_api_url = "https://blockchain.info/"
 diskless = False # if True, will not save stamps to disk
 
 # import private vars, may over-ride the above
@@ -27,7 +28,7 @@ if os.path.exists('private_vars.py'):
 
 # if the aws_cloudfront_distribution_id is not set these will be ignored
 aws_s3_bucketname = "stampchain.io"
-aws_s3_dir = "stamps/"
+aws_s3_image_dir = "stamps/"
 s3_client = boto3.client(
     's3',
     aws_access_key_id=aws_access_key_id,
@@ -40,7 +41,7 @@ json_output = "stamp.json"
 
 # the first official stamps
 blockstart = 779652
-blockend = requests.get('https://blockchain.info/q/getblockcount').json()
+blockend = requests.get(blockchain_api_url + 'q/getblockcount').json()
 # blockend = int(subprocess.check_output(['fednode', 'exec', 'bitcoin', 'bitcoin-cli', 'getblockcount']).decode('utf-8'))
 blockrange = list(range(blockstart,blockend))
 
@@ -73,7 +74,7 @@ def convert_base64_to_file(base64_string, item):
         with open(filename, "wb") as f:
             f.write(binary_data)
     # save the url back to the array
-    item["stamp_url"] = "https://" + aws_s3_bucketname + "/" + aws_s3_dir  + filename
+    item["stamp_url"] = "https://" + aws_s3_bucketname + "/" + aws_s3_image_dir  + filename
     return filename
 
 def get_s3_objects(bucket_name, s3_client):
@@ -213,7 +214,7 @@ for message in combined_list:
 
 
 json_string = json.dumps(combined_list, indent=4)
-final_array_with_url=(parse_json_array_convert_base64_to_file_and_upload(json_string,aws_s3_bucketname,aws_s3_dir))
+final_array_with_url=(parse_json_array_convert_base64_to_file_and_upload(json_string,aws_s3_bucketname,aws_s3_image_dir))
 print(final_array_with_url)
 
 
