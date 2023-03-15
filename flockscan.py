@@ -97,9 +97,12 @@ def upload_file_to_s3_aws_cli(local_file_path, bucket_name, s3_path):
     subprocess.run(["aws", "s3", "cp", local_file_path, f"s3://{bucket_name}/{s3_path}"], stdout=subprocess.DEVNULL)
     return True
 
-def upload_file_to_s3_boto3(local_file_path, bucket_name, s3_key, s3_client):
-    with open(local_file_path, 'rb') as f:
-        s3_client.upload_fileobj(f, bucket_name, s3_key)
+def upload_file_to_s3_boto3(local_file_path, bucket_name, s3_file_path, s3_client):
+    try:
+        with open(local_file_path, 'rb') as f:
+            s3_client.upload_fileobj(f, bucket_name, s3_file_path)
+    except Exception as e:
+        print("failure uploading to aws {}".format(e))
 
 def upload_raw_data_to_s3(data_stream, bucket_name, target_fileloc_name):
     # this is for aws lambda since it can't write to disk
@@ -225,7 +228,7 @@ if aws_secret_access_key != "" and aws_access_key_id != "":
 # pending check for existing file list, we will not upload if it exists
     s3_objects = get_s3_objects(aws_s3_bucketname, s3_client)
     # s3_key should be == to stamps/txid.png
-    print(s3_objects)
+    #print(s3_objects)
     #if s3_key not in s3_objects:
     #    print(f'Uploading {local_file_path} to {s3_key}')
     #    upload_file_to_s3_boto3(local_file_path, bucket_name, s3_key, s3_client)
@@ -234,7 +237,7 @@ if aws_secret_access_key != "" and aws_access_key_id != "":
 # upload json file to root dir of s3 bucket
 if aws_s3_bucketname != "" and aws_cloudfront_distribution_id != "":
     # upload_file_to_s3_aws_cli(json_output,aws_s3_bucketname,"")
-    upload_file_to_s3_boto3(json_output,aws_s3_bucketname,"/" + json_output,s3_client)
+    upload_file_to_s3_boto3(json_output,aws_s3_bucketname,json_output,s3_client)
     # can purge local file upon successful upload
     # os.remove(json_output)
     invalidate_s3_file("/" + json_output)
