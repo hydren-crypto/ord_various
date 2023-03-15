@@ -23,7 +23,7 @@ cntrprty_user = "rpc"
 cntrprty_password = "rpc"
 cntrprty_api_url = "http://127.0.0.1:4000/api/"
 blockchain_api_url = "https://blockchain.info/"
-diskless = False # if True, will not save stamps to disk
+diskless = True # if True, will not save stamps to disk
 
 # import private vars, may over-ride the above
 if os.path.exists('private_vars.py'):
@@ -64,10 +64,13 @@ def convert_base64_to_file(base64_string, item):
     if diskless:
         # write the file directly to s3
         print("writing to s3")
+        s3_file_path = aws_s3_image_dir + filename
+        upload_file_to_s3(binary_data, aws_s3_bucketname, s3_file_path, s3_client)
     else:
-        # write the file to disk - update to send data_stream to s3 directly
+        # write the file to disk
         with open(filename, "wb") as f:
             f.write(binary_data)
+        upload_file_to_s3(filename, aws_s3_bucketname, s3_file_path, s3_client)
     # save the url back to the array
     item["stamp_url"] = "https://" + aws_s3_bucketname + "/" + aws_s3_image_dir  + filename
     return filename
@@ -88,34 +91,21 @@ def invalidate_s3_file(file_path):
     command = ["aws", "cloudfront", "create-invalidation", "--distribution-id", aws_cloudfront_distribution_id, "--paths", file_path]
     subprocess.run(command, stdout=subprocess.DEVNULL)
 
-def upload_file_to_s3_boto3(local_file_path, bucket_name, s3_file_path, s3_client):
+def upload_file_to_s3(local_file_path, bucket_name, s3_file_path, s3_client):
     try:
         with open(local_file_path, 'rb') as f:
             s3_client.upload_fileobj(f, bucket_name, s3_file_path)
     except Exception as e:
         print("failure uploading to aws {}".format(e))
 
-def upload_raw_data_to_s3(data_stream, bucket_name, target_fileloc_name):
-    # this is for aws lambda since it can't write to disk
-    # target_fileloc_name is the complete path and filename in s3
-    s3_client.upload_fileobj(data_stream, bucket_name, target_fileloc_name)
-    # # example usage:
-    # # Create an in-memory stream
-    # data_stream = io.BytesIO()
-    # # Write the data array to the stream
-    # data_stream.write(json.dumps(json_output))
-    # # Reset the stream position
-    # data_stream.seek(0)
-    # # Pass the filename and stream to the upload_file_to_s3 function
-    # upload_raw_data_to_s3(data_stream, bucket_name,target_fileloc_name, )
     
 def parse_json_array_convert_base64_to_file_and_upload(json_string_array, bucket_name, s3_path):
     json_dict = json.loads(json_string_array)
-    for item in json_dict:
-        base64_string = item.get("stamp_base64")
-        file_path = convert_base64_to_file(base64_string, item)
-        upload_file_to_s3_boto3(file_path, bucket_name, s3_path + file_path, s3_client)
-        os.remove(file_path)
+    for json_component in json_dict:
+        base64_string = json_component.get("stamp_base64")
+        file_path = convert_base64_to_file(base64_string, json_component)
+        #upload_file_to_s3(file_path, bucket_name, s3_path + file_path, s3_client)
+        #os.remove(file_path)
 
     return json.dumps(json_dict)
 
@@ -174,8 +164,6 @@ def get_flocks(block_indexes):
     message["stamp"] = i
     i += 1
 
-  json_string = json.dumps(sorted_list, indent=4)
-
   flattened_list = []
   for message in sorted_list:
       flattened_dict = {}
@@ -222,11 +210,11 @@ if aws_secret_access_key != "" and aws_access_key_id != "":
     #print(s3_objects)
     #if s3_key not in s3_objects:
     #    print(f'Uploading {local_file_path} to {s3_key}')
-    #    upload_file_to_s3_boto3(local_file_path, bucket_name, s3_key, s3_client)
+    #    upload_file_to_s3(local_file_path, bucket_name, s3_key, s3_client)
 
 # upload json_output file to root dir of s3 bucket
 if aws_s3_bucketname != "" and aws_cloudfront_distribution_id != "":
-    upload_file_to_s3_boto3(json_output,aws_s3_bucketname,json_output,s3_client)
+    upload_file_to_s3(json_output,aws_s3_bucketname,json_output,s3_client)
     # can purge local file upon successful upload
     # os.remove(json_output)
     invalidate_s3_file("/" + json_output)
