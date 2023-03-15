@@ -1,4 +1,6 @@
 import json
+from io import BytesIO
+import re
 import time
 import base64
 import magic
@@ -23,7 +25,7 @@ cntrprty_user = "rpc"
 cntrprty_password = "rpc"
 cntrprty_api_url = "http://127.0.0.1:4000/api/"
 blockchain_api_url = "https://blockchain.info/"
-diskless = False # if True, will not save stamps to disk
+diskless = True # if True, will not save stamps to disk
 
 # import private vars, may over-ride the above
 if os.path.exists('private_vars.py'):
@@ -52,27 +54,7 @@ blockrange = list(range(blockstart,blockend))
 headers = {'content-type': 'application/json'}
 auth = HTTPBasicAuth(cntrprty_user, cntrprty_password)
        
-def convert_base64_to_file(base64_string, item):
-    binary_data = base64.b64decode(base64_string)
-    if type(base64_string) != str:
-        print(base64_string)
-        return "invalid_base64"
-    file_type = magic.from_buffer(binary_data, mime=True)
-    _, file_extension = file_type.split("/")
-    tx_hash = item.get("tx_hash")
-    filename = f"{tx_hash}.{file_extension}"
-    s3_file_path = aws_s3_image_dir + filename
-    if diskless:
-        # write the file directly to s3
-        upload_file_to_s3(binary_data, aws_s3_bucketname, s3_file_path, s3_client)
-    else:
-        # write the file to disk
-        with open(filename, "wb") as f:
-            f.write(binary_data)
-        upload_file_to_s3(filename, aws_s3_bucketname, s3_file_path, s3_client)
-    # save the url back to the array
-    item["stamp_url"] = "https://" + aws_s3_bucketname + "/" + aws_s3_image_dir  + filename
-    return filename
+
 
 def get_s3_objects(bucket_name, s3_client):
     result = []
@@ -90,13 +72,64 @@ def invalidate_s3_file(file_path):
     command = ["aws", "cloudfront", "create-invalidation", "--distribution-id", aws_cloudfront_distribution_id, "--paths", file_path]
     subprocess.run(command, stdout=subprocess.DEVNULL)
 
-def upload_file_to_s3(local_file_path, bucket_name, s3_file_path, s3_client):
-    try:
-        with open(local_file_path, 'rb') as f:
-            s3_client.upload_fileobj(f, bucket_name, s3_file_path)
-    except Exception as e:
-        print("failure uploading to aws {}".format(e))
+def invalidate_s3_file(file_path, aws_cloudfront_distribution_id):
+    client = boto3.client('cloudfront')
+    response = client.create_invalidation(
+        DistributionId=aws_cloudfront_distribution_id,
+        InvalidationBatch={
+            'Paths': {
+                'Quantity': 1,
+                'Items': [
+                    file_path
+                ]
+            },
+            'CallerReference': str(hash(file_path))
+        }
+    )
+    return response
 
+def convert_base64_to_file(base64_string, item, local_file_path=None):
+    if local_file_path is None:
+        binary_data = base64.b64decode(base64_string)
+        if type(base64_string) != str:
+            print(base64_string)
+            return "invalid_base64"
+        file_type = magic.from_buffer(binary_data, mime=True)
+        _, file_extension = file_type.split("/")
+    else:
+        file_extension = local_file_path.split(".")[-1]
+
+    tx_hash = item.get("tx_hash")
+    filename = f"{tx_hash}.{file_extension}"
+    s3_file_path = aws_s3_image_dir + filename
+
+    if local_file_path is None and diskless:
+        # Write the file directly to S3
+        with BytesIO(binary_data) as file_obj:
+            file_obj.seek(0)  # Reset the file pointer to the beginning
+            upload_file_to_s3(file_obj, aws_s3_bucketname, s3_file_path, s3_client, diskless=True)
+    else:
+        if local_file_path is None:
+            # Write the file to disk
+            with open(filename, "wb") as f:
+                f.write(binary_data)
+            local_file_path = filename
+
+        upload_file_to_s3(local_file_path, aws_s3_bucketname, s3_file_path, s3_client)
+
+    # Save the URL back to the array
+    item["stamp_url"] = f"https://{aws_s3_bucketname}/{aws_s3_image_dir}{filename}"
+    return filename
+
+def upload_file_to_s3(file_obj_or_path, bucket_name, s3_file_path, s3_client, diskless=False):
+    try:
+        if diskless:
+            s3_client.upload_fileobj(file_obj_or_path, bucket_name, s3_file_path)
+        else:
+            s3_client.upload_file(file_obj_or_path, bucket_name, s3_file_path)
+        #print(f'Successfully uploaded file to {bucket_name}/{s3_file_path}')
+    except Exception as e:
+        print(f"failure uploading to aws {e}")
     
 def parse_json_array_convert_base64_to_file_and_upload(json_string_array, bucket_name, s3_path):
     json_dict = json.loads(json_string_array)
@@ -216,4 +249,5 @@ if aws_s3_bucketname != "" and aws_cloudfront_distribution_id != "":
     upload_file_to_s3(json_output,aws_s3_bucketname,json_output,s3_client)
     # can purge local file upon successful upload
     # os.remove(json_output)
-    invalidate_s3_file("/" + json_output)
+    invalidate_s3_file("/" + json_output, aws_cloudfront_distribution_id)
+    #invalidate_s3_file("/" + json_output)
