@@ -141,95 +141,69 @@ def parse_json_array_convert_base64_to_file_and_upload(json_string_array, bucket
 
     return json.dumps(json_dict)
 
-def get_flocks(block_indexes):
-  payload = {
-    "method": "get_blocks",
-    "params": {
-             "block_indexes": block_indexes
-              },
-    "jsonrpc": "2.0",
-    "id": 0
-  }
-  response = requests.post(cntrprty_api_url, data=json.dumps(payload), headers=headers, auth=auth)
-  output = response.text
-  data = json.loads(output)
-  result = data["result"]
-  output_list = []
-  for i in range(len(result)):
-    block_data = result[i]
-    messages = block_data["_messages"]
+def process_messages(messages):
+    output_list = []
+
     for message in messages:
-      # in message index [9142396,9142291] there is no identifying difference in the category  or command ffield
-      # only the  lock status  changed from false to true. the simplest method is to only allow the first trx of the asseet in as a stamp
-      # this also means that if a user creates an asset with lock = fales and a blank description field. then they
-      # add a stamp: formatted description and change the lock status to true it would then be counted as a stamp.
+        if message["category"] == "issuances" and message["command"] == "insert":
+            bindings = message["bindings"]
+            description = json.loads(bindings)["description"]
 
-      if message["category"] == "issuances" and message["command"] == "insert":
-        bindings = message["bindings"]
-        # and an iff bindings["status"] == "valid"  ?
-        description = json.loads(bindings)["description"]
-        if description.lower().find("stamp:") != -1:
-          stamp_search = description[description.lower().find("stamp:")+6:]
-          stamp_base64 = stamp_search.strip() if len(stamp_search) > 1 else None  
-          bindings = json.loads(bindings)
-          asset = bindings["asset"]
-          # Check if the asset already exists in the output_list
-          if not any(item["bindings"]["asset"] == asset for item in output_list):
-             message["bindings"] = {
-               "description": bindings["description"],
-               "tx_hash": bindings["tx_hash"],
-               "asset": bindings["asset"],
-               "asset_longname": bindings["asset_longname"],
-               "block_index": bindings["block_index"],
-               "status": bindings["status"],
-               "tx_index": bindings["tx_index"],
-               "stamp_base64": stamp_base64 # add this line                                                       
-             }
-             output_list.append(message)
+            if description.lower().find("stamp:") != -1:
+                stamp_search = description[description.lower().find("stamp:") + 6:]
+                stamp_base64 = stamp_search.strip() if len(stamp_search) > 1 else None
+                bindings = json.loads(bindings)
+                asset = bindings["asset"]
 
-  # Sort the list by message_index
-  sorted_list = sorted(output_list, key=lambda k: k['message_index'])
+                if not any(item["bindings"]["asset"] == asset for item in output_list):
+                    message["bindings"] = {
+                        "description": bindings["description"],
+                        "tx_hash": bindings["tx_hash"],
+                        "asset": bindings["asset"],
+                        "asset_longname": bindings["asset_longname"],
+                        "block_index": bindings["block_index"],
+                        "status": bindings["status"],
+                        "tx_index": bindings["tx_index"],
+                        "stamp_base64": stamp_base64
+                    }
+                    output_list.append(message)
 
-  # Add a new "stamp" key-value pair to the dictionary
-  i = 0
-  for message in sorted_list:
-    message["stamp"] = i
-    i += 1
-
-  flattened_list = []
-  for message in sorted_list:
-      flattened_dict = {}
-      # flattened_dict["description"] = message["bindings"]["description"]
-      flattened_dict["stamp"] = message["stamp"]
-      flattened_dict["message_index"] = message["message_index"]
-      flattened_dict["block_index"] = message["block_index"]
-      flattened_dict["tx_hash"] = message["bindings"]["tx_hash"]
-      flattened_dict["asset"] = message["bindings"]["asset"]
-      flattened_dict["asset_longname"] = message["bindings"]["asset_longname"]
-      flattened_dict["block_index"] = message["bindings"]["block_index"]
-      flattened_dict["tx_index"] = message["bindings"]["tx_index"]
-      flattened_dict["stamp_base64"] = message["bindings"]["stamp_base64"]
-      flattened_list.append(flattened_dict)
-
-  #json_string = json.dumps(flattened_list, indent=4)
-  #print(json_string)
-
-  return flattened_list # Return the flattened list
+    return output_list
 
 
 combined_list = []
 for i in range(0, len(blockrange), 249):
-    combined_list += get_flocks(blockrange[i:i+249])
+    block_indexes = blockrange[i:i + 249]
+    response = requests.post(cntrprty_api_url, data=json.dumps(payload), headers=headers, auth=auth)
+    output = response.text
+    data = json.loads(output)
+    result = data["result"]
 
-i = 0
+    for block_data in result:
+        messages = block_data["_messages"]
+        combined_list += process_messages(messages)
+
+# Sort the combined_list by message_index
+combined_list = sorted(combined_list, key=lambda k: k['message_index'])
+
+# Deduplicate the list by "asset" key
+unique_assets = {}
+unique_list = []
+
 for message in combined_list:
-  message["stamp"] = i
-  i += 1
+    asset = message["asset"]
+    if asset not in unique_assets:
+        unique_assets[asset] = True
+        unique_list.append(message)
 
+# Assign new "stamp" key-value pair to the dictionary
+for i, message in enumerate(unique_list):
+    message["stamp"] = i
 
-json_string = json.dumps(combined_list, indent=4)
-final_array_with_url=(parse_json_array_convert_base64_to_file_and_upload(json_string,aws_s3_bucketname,aws_s3_image_dir))
-#print(final_array_with_url)
+json_string = json.dumps(unique_list, indent=4)
+final_array_with_url = (parse_json_array_convert_base64_to_file_and_upload(json_string, aws_s3_bucketname, aws_s3_image_dir))
+print(final_array_with_url)
+
 
 
 with open(json_output, 'w') as f:
