@@ -13,6 +13,9 @@ from requests.auth import HTTPBasicAuth
 # this will exclude the initial tests with text in the string suck as stamp:"data:image/png;base64,[base64]" 
 # this exclusion / malformatting can be tested with stamps prior to block 779652
 
+# this script is intended to be run from block 779652 and build the entire stampchain
+# modifications will be needed for a version to look at only current blocks and append to an existing stampchain
+
 aws_access_key_id = ""
 aws_secret_access_key = ""
 aws_cloudfront_distribution_id = ""
@@ -48,14 +51,6 @@ blockrange = list(range(blockstart,blockend))
 # API VARS
 headers = {'content-type': 'application/json'}
 auth = HTTPBasicAuth(cntrprty_user, cntrprty_password)
-
-s3_client = boto3.client(
-    's3',
-    aws_access_key_id=aws_access_key_id,
-    aws_secret_access_key=aws_secret_access_key
-    )
-
-
        
 def convert_base64_to_file(base64_string, item):
     binary_data = base64.b64decode(base64_string)
@@ -117,13 +112,13 @@ def upload_raw_data_to_s3(data_stream, bucket_name, target_fileloc_name):
     # data_stream.seek(0)
     # # Pass the filename and stream to the upload_file_to_s3 function
     # upload_raw_data_to_s3(data_stream, bucket_name,target_fileloc_name, )
-
+    
 def parse_json_array_convert_base64_to_file_and_upload(json_string_array, bucket_name, s3_path):
     json_dict = json.loads(json_string_array)
     for item in json_dict:
         base64_string = item.get("stamp_base64")
         file_path = convert_base64_to_file(base64_string, item)
-        if upload_file_to_s3_aws_cli(file_path, bucket_name, s3_path):
+        if upload_file_to_s3_boto3(file_path, bucket_name, s3_path + file_path, s3_client):
             os.remove(file_path)
 
     return json.dumps(json_dict)
@@ -233,10 +228,8 @@ if aws_secret_access_key != "" and aws_access_key_id != "":
     #    print(f'Uploading {local_file_path} to {s3_key}')
     #    upload_file_to_s3_boto3(local_file_path, bucket_name, s3_key, s3_client)
 
-
-# upload json file to root dir of s3 bucket
+# upload json_output file to root dir of s3 bucket
 if aws_s3_bucketname != "" and aws_cloudfront_distribution_id != "":
-    # upload_file_to_s3_aws_cli(json_output,aws_s3_bucketname,"")
     upload_file_to_s3_boto3(json_output,aws_s3_bucketname,json_output,s3_client)
     # can purge local file upon successful upload
     # os.remove(json_output)
