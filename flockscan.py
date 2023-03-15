@@ -88,10 +88,6 @@ def invalidate_s3_file(file_path):
     command = ["aws", "cloudfront", "create-invalidation", "--distribution-id", aws_cloudfront_distribution_id, "--paths", file_path]
     subprocess.run(command, stdout=subprocess.DEVNULL)
 
-def upload_file_to_s3_aws_cli(local_file_path, bucket_name, s3_path):
-    subprocess.run(["aws", "s3", "cp", local_file_path, f"s3://{bucket_name}/{s3_path}"], stdout=subprocess.DEVNULL)
-    return True
-
 def upload_file_to_s3_boto3(local_file_path, bucket_name, s3_file_path, s3_client):
     try:
         with open(local_file_path, 'rb') as f:
@@ -118,8 +114,8 @@ def parse_json_array_convert_base64_to_file_and_upload(json_string_array, bucket
     for item in json_dict:
         base64_string = item.get("stamp_base64")
         file_path = convert_base64_to_file(base64_string, item)
-        if upload_file_to_s3_boto3(file_path, bucket_name, s3_path + file_path, s3_client):
-            os.remove(file_path)
+        upload_file_to_s3_boto3(file_path, bucket_name, s3_path + file_path, s3_client)
+        os.remove(file_path)
 
     return json.dumps(json_dict)
 
@@ -213,7 +209,7 @@ for message in combined_list:
 
 json_string = json.dumps(combined_list, indent=4)
 final_array_with_url=(parse_json_array_convert_base64_to_file_and_upload(json_string,aws_s3_bucketname,aws_s3_image_dir))
-print(final_array_with_url)
+#print(final_array_with_url)
 
 
 with open(json_output, 'w') as f:
