@@ -23,7 +23,7 @@ cntrprty_user = "rpc"
 cntrprty_password = "rpc"
 cntrprty_api_url = "http://127.0.0.1:4000/api/"
 blockchain_api_url = "https://blockchain.info/"
-diskless = True # if True, will not save stamps to disk
+diskless = False # if True, will not save stamps to disk
 
 # import private vars, may over-ride the above
 if os.path.exists('private_vars.py'):
@@ -61,10 +61,9 @@ def convert_base64_to_file(base64_string, item):
     _, file_extension = file_type.split("/")
     tx_hash = item.get("tx_hash")
     filename = f"{tx_hash}.{file_extension}"
+    s3_file_path = aws_s3_image_dir + filename
     if diskless:
         # write the file directly to s3
-        print("writing to s3")
-        s3_file_path = aws_s3_image_dir + filename
         upload_file_to_s3(binary_data, aws_s3_bucketname, s3_file_path, s3_client)
     else:
         # write the file to disk
