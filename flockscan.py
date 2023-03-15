@@ -171,17 +171,31 @@ def process_messages(messages):
     return output_list
 
 
-combined_list = []
-for i in range(0, len(blockrange), 249):
-    block_indexes = blockrange[i:i + 249]
+def get_block_data(block_indexes):
+    payload = {
+        "method": "get_blocks",
+        "params": {
+            "block_indexes": block_indexes
+        },
+        "jsonrpc": "2.0",
+        "id": 0
+    }
     response = requests.post(cntrprty_api_url, data=json.dumps(payload), headers=headers, auth=auth)
     output = response.text
     data = json.loads(output)
-    result = data["result"]
+    return data["result"]
+
+
+combined_list = []
+for i in range(0, len(blockrange), 249):
+    block_indexes = blockrange[i:i + 249]
+    result = get_block_data(block_indexes)
 
     for block_data in result:
         messages = block_data["_messages"]
         combined_list += process_messages(messages)
+
+# ... rest of the code
 
 # Sort the combined_list by message_index
 combined_list = sorted(combined_list, key=lambda k: k['message_index'])
