@@ -225,13 +225,14 @@ if aws_secret_access_key != "" and aws_access_key_id != "":
 # pending check for existing file list, we will not upload if it exists
     s3_objects = get_s3_objects(aws_s3_bucketname, s3_client)
     # s3_key should be == to stamps/txid.png
-    if s3_key not in s3_objects:
-        print(f'Uploading {local_file_path} to {s3_key}')
-        upload_file_to_s3_boto3(local_file_path, bucket_name, s3_key, s3_client)
+    print(s3_objects)
+    #if s3_key not in s3_objects:
+    #    print(f'Uploading {local_file_path} to {s3_key}')
+    #    upload_file_to_s3_boto3(local_file_path, bucket_name, s3_key, s3_client)
 
 
 # upload json file to root dir of s3 bucket
-if aws_s3_bucketname != "" and aws_s3_dir != "" and aws_cloudfront_distribution_id != "":
+if aws_s3_bucketname != "" and aws_cloudfront_distribution_id != "":
     # upload_file_to_s3_aws_cli(json_output,aws_s3_bucketname,"")
     upload_file_to_s3_boto3(json_output,aws_s3_bucketname,"/" + json_output,s3_client)
     # can purge local file upon successful upload
