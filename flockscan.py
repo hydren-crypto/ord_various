@@ -89,11 +89,13 @@ def invalidate_s3_file(file_path, aws_cloudfront_distribution_id):
     return response
 
 def convert_base64_to_file(base64_string, item, local_file_path=None):
-    if local_file_path is None:
+    try:
         binary_data = base64.b64decode(base64_string)
-        if type(base64_string) != str:
-            print(base64_string)
-            return "invalid_base64"
+    except Exception as e:
+        print(f"Invalid base64: {base64_string}, Error: {e}")
+        return None
+
+    if local_file_path is None:
         file_type = magic.from_buffer(binary_data, mime=True)
         _, file_extension = file_type.split("/")
     else:
@@ -104,18 +106,19 @@ def convert_base64_to_file(base64_string, item, local_file_path=None):
     s3_file_path = aws_s3_image_dir + filename
 
     if local_file_path is None and diskless:
-        # Write the file directly to S3
         with BytesIO(binary_data) as file_obj:
-            file_obj.seek(0)  # Reset the file pointer to the beginning
+            file_obj.seek(0)
             upload_file_to_s3(file_obj, aws_s3_bucketname, s3_file_path, s3_client, diskless=True)
     else:
         if local_file_path is None:
-            # Write the file to disk
             with open(filename, "wb") as f:
                 f.write(binary_data)
             local_file_path = filename
 
         upload_file_to_s3(local_file_path, aws_s3_bucketname, s3_file_path, s3_client)
+
+    item["stamp_url"] = f"https://{aws_s3_bucketname}/{aws_s3_image_dir}{filename}"
+    return filename
 
     # Save the URL back to the array
     item["stamp_url"] = f"https://{aws_s3_bucketname}/{aws_s3_image_dir}{filename}"
@@ -133,22 +136,23 @@ def upload_file_to_s3(file_obj_or_path, bucket_name, s3_file_path, s3_client, di
     
 def parse_json_array_convert_base64_to_file_and_upload(json_string_array, bucket_name, s3_path):
     json_dict = json.loads(json_string_array)
+    valid_json_components = []
+    
     for json_component in json_dict:
         base64_string = json_component.get("stamp_base64")
         if base64_string is not None:
             filename = convert_base64_to_file(base64_string, json_component)
-        else:
-            filename = None
+            if filename:
+                if diskless:
+                    with open(filename, "rb") as file_obj:
+                        upload_file_to_s3(file_obj, bucket_name, s3_path + filename, s3_client, diskless=True)
+                else:
+                    upload_file_to_s3(filename, bucket_name, s3_path + filename, s3_client)
+                    os.remove(filename)
+                valid_json_components.append(json_component)
 
-        if filename:
-            if diskless:
-                with open(filename, "rb") as file_obj:
-                    upload_file_to_s3(file_obj, bucket_name, s3_path + filename, s3_client, diskless=True)
-            else:
-                upload_file_to_s3(filename, bucket_name, s3_path + filename, s3_client)
-                os.remove(filename)
+    return json.dumps(valid_json_components)
 
-    return json.dumps(json_dict)
 
 
 
