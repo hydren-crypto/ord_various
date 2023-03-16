@@ -168,7 +168,7 @@ def parse_json_array_convert_base64_to_file_and_upload(json_string, aws_s3_bucke
                         with io.BytesIO(imgdata) as file_obj:
                             try:
                                 s3.upload_fileobj(file_obj, aws_s3_bucketname, f"{aws_s3_image_dir}/{filename}")
-                                print(f"Processed filename: {filename}")
+                                # print(f"Processed filename: {filename}") # Debug Output
                                 item["stamp_url"] = f"https://stampchain.io/stamps/{filename}"
                                 valid_json_components.append(json_component)
                             except NoCredentialsError as e:
@@ -182,7 +182,7 @@ def parse_json_array_convert_base64_to_file_and_upload(json_string, aws_s3_bucke
         else:
             print(f"Removed invalid component: {json_component}")
 
-    print(f"Final valid_json_components: {valid_json_components}")
+    #print(f"Final valid_json_components: {json.dumps(valid_json_components, indent=4)}")
     return valid_json_components
 
 
@@ -259,13 +259,15 @@ for i, message in enumerate(unique_list):
     message["stamp"] = i
 
 json_string = json.dumps(unique_list, indent=4)
-final_array_with_url = (parse_json_array_convert_base64_to_file_and_upload(json_string, aws_s3_bucketname, aws_s3_image_dir))
-print(final_array_with_url)
+final_array_with_url = parse_json_array_convert_base64_to_file_and_upload(json_string, aws_s3_bucketname, aws_s3_image_dir)
 
+# Join the list items as a JSON array string
+final_array_with_url_string = '[' + ', '.join(final_array_with_url) + ']'
 
-
+print(final_array_with_url_string)
 with open(json_output, 'w') as f:
-    f.write(final_array_with_url)
+    f.write(final_array_with_url_string)
+
 
 if aws_secret_access_key != "" and aws_access_key_id != "":
 # pending check for existing file list, we will not upload if it exists
