@@ -222,9 +222,7 @@ json_string = json.dumps(unique_list, indent=4)
 final_array_with_url = parse_json_array_convert_base64_to_file_and_upload(json_string, aws_s3_bucketname, aws_s3_image_dir)
 
 # Join the list items as a JSON array string
-# final_array_with_url_string = '[' + ', '.join(final_array_with_url) + ']'
 final_array_with_url_string = '[' + ', '.join(json.dumps(item) for item in final_array_with_url) + ']'
-
 
 print(final_array_with_url_string)
 with open(json_output, 'w') as f:
