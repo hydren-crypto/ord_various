@@ -154,10 +154,10 @@ def parse_json_array_convert_base64_to_file_and_upload(json_string, aws_s3_bucke
     for item in json_data:
         json_component = json.dumps(item)
         if item.get("command") == "insert" and item.get("category") == "issuances":
-            bindings = item.get("bindings")
-            if bindings:
-                stamp_base64 = bindings.get("stamp_base64")
-                tx_hash = bindings.get("tx_hash")
+            #bindings = item.get("bindings")
+            #if bindings:
+                stamp_base64 = item.get("stamp_base64")
+                tx_hash = item.get("tx_hash")
                 
                 if stamp_base64 and tx_hash:
                     try:
@@ -177,8 +177,8 @@ def parse_json_array_convert_base64_to_file_and_upload(json_string, aws_s3_bucke
                         print(f"Error processing base64 image for {tx_hash}: {e}")
                 else:
                     print(f"Removed invalid component: {json_component}")
-            else:
-                print(f"Removed invalid component: {json_component}")
+            #else:
+            #    print(f"Removed invalid component: {json_component}")
         else:
             print(f"Removed invalid component: {json_component}")
 
@@ -254,9 +254,11 @@ for message in combined_list:
         unique_assets[asset] = True
         unique_list.append(message)
 
-# Assign new "stamp" key-value pair to the dictionary
+# Assign new "stamp" key-value pair to the dictionary and flatten
 for i, message in enumerate(unique_list):
     message["stamp"] = i
+    bindings = message.pop("bindings")
+    message.update(bindings)
 
 json_string = json.dumps(unique_list, indent=4)
 final_array_with_url = parse_json_array_convert_base64_to_file_and_upload(json_string, aws_s3_bucketname, aws_s3_image_dir)
