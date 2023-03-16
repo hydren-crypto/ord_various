@@ -1,22 +1,20 @@
 import json
-from io import BytesIO
-import io
 import re
 import time
 import base64
 import magic
 import os
 import boto3
-from PIL import Image
 import requests
 import subprocess
-import pprint
+import logging
+from io import BytesIO
+import io
+from pathlib import Path
+from PIL import Image
 from requests.auth import HTTPBasicAuth
-import sys
+from botocore.exceptions import NoCredentialsError
 
-# FIXME: need to check if stamp_base64 is a valid base64 string, if not it won't become a stamp
-# this will exclude the initial tests with text in the string suck as stamp:"data:image/png;base64,[base64]" 
-# this exclusion / malformatting can be tested with stamps prior to block 779652
 
 # this script is intended to be run from block 779652 and build the entire stampchain
 # modifications will be needed for a version to look at only current blocks and append to an existing stampchain
@@ -57,7 +55,6 @@ blockrange = list(range(blockstart,blockend))
 headers = {'content-type': 'application/json'}
 auth = HTTPBasicAuth(cntrprty_user, cntrprty_password)
        
-
 
 def get_s3_objects(bucket_name, s3_client):
     result = []
@@ -101,41 +98,6 @@ def invalidate_s3_file(file_path, aws_cloudfront_distribution_id):
     )
     return response
 
-
-def convert_base64_to_file(base64_string, item, local_file_path=None):
-    try:
-        binary_data = base64.b64decode(base64_string)
-        print(binary_data)
-        file_type = magic.from_buffer(binary_data, mime=True)
-        _, file_extension = file_type.split("/")
-    except Exception as e:
-        print(f"Error decoding base64 or detecting mime type: {e}")
-        return None
-    
-    tx_hash = item["bindings"].get("tx_hash")
-    filename = f"{tx_hash}.{file_extension}"
-    print("FOUND FILENAME ", filename)
-    s3_file_path = aws_s3_image_dir + filename
-
-    if local_file_path is None and diskless:
-        # Write the file directly to S3
-        with BytesIO(binary_data) as file_obj:
-            file_obj.seek(0)  # Reset the file pointer to the beginning
-            upload_file_to_s3(file_obj, aws_s3_bucketname, s3_file_path, s3_client, diskless=True)
-    else:
-            with open(filename, "wb") as f:
-                f.write(binary_data)
-            local_file_path = filename
-
-            upload_file_to_s3(local_file_path, aws_s3_bucketname, s3_file_path, s3_client)
-
-    # Save the URL back to the array
-    item["stamp_url"] = f"https://{aws_s3_bucketname}/{aws_s3_image_dir}{filename}"
-    
-    # Return the filename
-    return filename if filename != 'None.png' else None 
-
-
 def upload_file_to_s3(file_obj_or_path, bucket_name, s3_file_path, s3_client, diskless=False):
     try:
         if diskless:
@@ -154,31 +116,27 @@ def parse_json_array_convert_base64_to_file_and_upload(json_string, aws_s3_bucke
     for item in json_data:
         json_component = json.dumps(item)
         if item.get("command") == "insert" and item.get("category") == "issuances":
-            #bindings = item.get("bindings")
-            #if bindings:
-                stamp_base64 = item.get("stamp_base64")
-                tx_hash = item.get("tx_hash")
-                
-                if stamp_base64 and tx_hash:
-                    try:
-                        imgdata = base64.b64decode(stamp_base64)
-                        filename = f"{tx_hash}.png"
-                        s3 = boto3.client('s3')
-                        
-                        with io.BytesIO(imgdata) as file_obj:
-                            try:
-                                s3.upload_fileobj(file_obj, aws_s3_bucketname, f"{aws_s3_image_dir}/{filename}")
-                                # print(f"Processed filename: {filename}") # Debug Output
-                                item["stamp_url"] = f"https://stampchain.io/stamps/{filename}"
-                                valid_json_components.append(item)
-                            except NoCredentialsError as e:
-                                print(f"Unable to upload {filename} to S3. Error: {e}")
-                    except Exception as e:
-                        print(f"Error processing base64 image for {tx_hash}: {e}")
-                else:
-                    print(f"Removed invalid component: {json_component}")
-            #else:
-            #    print(f"Removed invalid component: {json_component}")
+            stamp_base64 = item.get("stamp_base64")
+            tx_hash = item.get("tx_hash")
+            
+            if stamp_base64 and tx_hash:
+                try:
+                    imgdata = base64.b64decode(stamp_base64)
+                    filename = f"{tx_hash}.png"
+                    s3 = boto3.client('s3')
+                    
+                    with io.BytesIO(imgdata) as file_obj:
+                        try:
+                            s3.upload_fileobj(file_obj, aws_s3_bucketname, f"{aws_s3_image_dir}/{filename}")
+                            # print(f"Processed filename: {filename}") # Debug Output
+                            item["stamp_url"] = f"https://stampchain.io/stamps/{filename}"
+                            valid_json_components.append(item)
+                        except NoCredentialsError as e:
+                            print(f"Unable to upload {filename} to S3. Error: {e}")
+                except Exception as e:
+                    print(f"Error processing base64 image for {tx_hash}: {e}")
+            else:
+                print(f"Removed invalid component: {json_component}")
         else:
             print(f"Removed invalid component: {json_component}")
 
@@ -288,4 +246,3 @@ if aws_s3_bucketname != "" and aws_cloudfront_distribution_id != "":
     # can purge local file upon successful upload
     # os.remove(json_output)
     invalidate_s3_file("/" + json_output, aws_cloudfront_distribution_id)
-    #invalidate_s3_file("/" + json_output)
