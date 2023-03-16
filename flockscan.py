@@ -1,15 +1,18 @@
 import json
 from io import BytesIO
+import io
 import re
 import time
 import base64
 import magic
 import os
 import boto3
+from PIL import Image
 import requests
 import subprocess
 import pprint
 from requests.auth import HTTPBasicAuth
+import sys
 
 # FIXME: need to check if stamp_base64 is a valid base64 string, if not it won't become a stamp
 # this will exclude the initial tests with text in the string suck as stamp:"data:image/png;base64,[base64]" 
@@ -67,6 +70,16 @@ def get_s3_objects(bucket_name, s3_client):
                 result.append(obj['Key'])
     
     return result
+
+def is_base64_image(base64_string):
+    try:
+        image_data = base64.b64decode(base64_string)
+        image = Image.open(io.BytesIO(image_data))
+        image.verify()
+        return True
+    except Exception as e:
+        print(f"Invalid base64 image string: {e}")
+        return False
 
 def invalidate_s3_file(file_path):
     command = ["aws", "cloudfront", "create-invalidation", "--distribution-id", aws_cloudfront_distribution_id, "--paths", file_path]
@@ -135,13 +148,14 @@ def upload_file_to_s3(file_obj_or_path, bucket_name, s3_file_path, s3_client, di
     
 
 def parse_json_array_convert_base64_to_file_and_upload(json_string_array, bucket_name, s3_path):
+    #print(json_string_array)
+    #sys.exit()
     json_dict = json.loads(json_string_array)
     valid_json_components = []
-
-    print(f"Initial json_dict: {json_dict}")  # Debug print
-
+    print(json.dumps(json_dict, indent=4))
     for json_component in json_dict:
-        base64_string = json_component.get("stamp_base64")
+        base64_string = json_component["bindings"].get("stamp_base64")
+        print("FOUND STAMP STRING ", base64_string)
         if base64_string is not None:
             filename = convert_base64_to_file(base64_string, json_component)
             print(f"Processed filename: {filename}")  # Debug print
@@ -153,13 +167,13 @@ def parse_json_array_convert_base64_to_file_and_upload(json_string_array, bucket
                     upload_file_to_s3(filename, bucket_name, s3_path + filename, s3_client)
                     os.remove(filename)
                 valid_json_components.append(json_component)
-                print(f"Appending valid json_component: {json_component}")  # Debug print
+                print(f"Appending valid json_component: {json.dumps(json_component, indent=4)}")  # Debug print
             else:
-                print(f"Removed invalid component: {json_component}")  # Debug print
+                print(f"Removed invalid component: {json.dumps(json_component, indent=4)}")  # Debug print
         else:
-            print(f"Removed invalid component: {json_component}")  # Debug print
+            print(f"Removed invalid component: {json.dumps(json_component, indent=4)}")  # Debug print
 
-    print(f"Final valid_json_components: {valid_json_components}")  # Debug print
+    print(f"Final valid_json_components: {json.dumps(valid_json_components, indent=4)}")  # Debug print
 
     return json.dumps(valid_json_components)
 
@@ -179,7 +193,7 @@ def process_messages(messages):
                 bindings = json.loads(bindings)
                 asset = bindings["asset"]
 
-                if not any(item["bindings"]["asset"] == asset for item in output_list):
+                if not any(item["bindings"]["asset"] == asset for item in output_list) and is_base64_image(stamp_base64):
                     message["bindings"] = {
                         "description": bindings["description"],
                         "tx_hash": bindings["tx_hash"],
@@ -219,7 +233,6 @@ for i in range(0, len(blockrange), 249):
         messages = block_data["_messages"]
         combined_list += process_messages(messages)
 
-# ... rest of the code
 
 # Sort the combined_list by message_index
 combined_list = sorted(combined_list, key=lambda k: k['message_index'])
