@@ -44,6 +44,7 @@ s3_client = boto3.client(
 
 # saved in script dir
 json_output = "stamp.json"
+stamp_status = "stamp_status.json"
 
 # the first official stamps
 blockstart = 779652
@@ -76,24 +77,19 @@ def is_base64_image(base64_string):
         return True
     except Exception as e:
         print(f"Invalid base64 image string: {e}")
+        print(base64_string)
         return False
 
-def invalidate_s3_file(file_path):
-    command = ["aws", "cloudfront", "create-invalidation", "--distribution-id", aws_cloudfront_distribution_id, "--paths", file_path]
-    subprocess.run(command, stdout=subprocess.DEVNULL)
-
-def invalidate_s3_file(file_path, aws_cloudfront_distribution_id):
+def invalidate_s3_files(file_paths, aws_cloudfront_distribution_id):
     client = boto3.client('cloudfront')
     response = client.create_invalidation(
         DistributionId=aws_cloudfront_distribution_id,
         InvalidationBatch={
             'Paths': {
-                'Quantity': 1,
-                'Items': [
-                    file_path
-                ]
+                'Quantity': len(file_paths),
+                'Items': file_paths
             },
-            'CallerReference': str(hash(file_path))
+            'CallerReference': str(hash(tuple(file_paths)))
         }
     )
     return response
@@ -101,6 +97,7 @@ def invalidate_s3_file(file_path, aws_cloudfront_distribution_id):
 def upload_file_to_s3(file_obj_or_path, bucket_name, s3_file_path, s3_client, diskless=False):
     try:
         if diskless:
+            print("uploading", file_obj_or_path)
             s3_client.upload_fileobj(file_obj_or_path, bucket_name, s3_file_path)
         else:
             s3_client.upload_file(file_obj_or_path, bucket_name, s3_file_path)
@@ -127,7 +124,7 @@ def parse_json_array_convert_base64_to_file_and_upload(json_string, aws_s3_bucke
                     
                     with io.BytesIO(imgdata) as file_obj:
                         try:
-                            s3.upload_fileobj(file_obj, aws_s3_bucketname, f"{aws_s3_image_dir}/{filename}")
+                            s3.upload_fileobj(file_obj, aws_s3_bucketname, f"{aws_s3_image_dir}{filename}")
                             # print(f"Processed filename: {filename}") # Debug Output
                             item["stamp_url"] = f"https://stampchain.io/stamps/{filename}"
                             valid_json_components.append(item)
@@ -157,7 +154,6 @@ def process_messages(messages):
                 stamp_base64 = stamp_search.strip() if len(stamp_search) > 1 else None
                 bindings = json.loads(bindings)
                 asset = bindings["asset"]
-
                 if not any(item["bindings"]["asset"] == asset for item in output_list) and is_base64_image(stamp_base64):
                     message["bindings"] = {
                         "description": bindings["description"],
@@ -224,7 +220,7 @@ final_array_with_url = parse_json_array_convert_base64_to_file_and_upload(json_s
 # Join the list items as a JSON array string
 final_array_with_url_string = '[' + ', '.join(json.dumps(item) for item in final_array_with_url) + ']'
 
-print(final_array_with_url_string)
+#print(final_array_with_url_string)
 with open(json_output, 'w') as f:
     f.write(final_array_with_url_string)
 
@@ -241,6 +237,12 @@ if aws_secret_access_key != "" and aws_access_key_id != "":
 # upload json_output file to root dir of s3 bucket
 if aws_s3_bucketname != "" and aws_cloudfront_distribution_id != "":
     upload_file_to_s3(json_output,aws_s3_bucketname,json_output,s3_client)
+
+    stamp_status_data =  {'last_block': blockend} # Create a file-like buffer with the JSON data in memory
+    stamp_status_data_file_obj = io.BytesIO(json.dumps(stamp_status_data).encode())
+    upload_file_to_s3(stamp_status_data_file_obj, aws_s3_bucketname, f"{stamp_status}", s3_client, diskless=True)
+
     # can purge local file upon successful upload
     # os.remove(json_output)
-    invalidate_s3_file("/" + json_output, aws_cloudfront_distribution_id)
+    invalidate_paths = ["/" + json_output, "/" + stamp_status]
+    invalidate_response = invalidate_s3_files(invalidate_paths, aws_cloudfront_distribution_id)
