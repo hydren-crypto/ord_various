@@ -72,8 +72,10 @@ def get_s3_objects(bucket_name, s3_client):
 def is_base64_image(base64_string):
     try:
         image_data = base64.b64decode(base64_string)
-        image = Image.open(io.BytesIO(image_data))
-        image.verify()
+        # supported foromats for this PIL method
+        # ".bmp, .dib, .gif, .tif, .tiff, .jfif, .jpe, .jpg, .jpeg, .pbm, .pgm, .ppm, .pnm, .png, .apng"
+        # image = Image.open(io.BytesIO(image_data))
+        # image.verify()
         return True
     except Exception as e:
         print(f"Invalid base64 image string: {e}")
@@ -97,11 +99,9 @@ def invalidate_s3_files(file_paths, aws_cloudfront_distribution_id):
 def upload_file_to_s3(file_obj_or_path, bucket_name, s3_file_path, s3_client, diskless=False):
     try:
         if diskless:
-            print("uploading", file_obj_or_path)
             s3_client.upload_fileobj(file_obj_or_path, bucket_name, s3_file_path)
         else:
             s3_client.upload_file(file_obj_or_path, bucket_name, s3_file_path)
-        #print(f'Successfully uploaded file to {bucket_name}/{s3_file_path}')
     except Exception as e:
         print(f"failure uploading to aws {e}")
     
@@ -112,7 +112,7 @@ def parse_json_array_convert_base64_to_file_and_upload(json_string, aws_s3_bucke
 
     for item in json_data:
         json_component = json.dumps(item)
-        if item.get("command") == "insert" and item.get("category") == "issuances":
+        if item.get("command") == "insert" and item.get("category") == "issuances" and item.get("status") == "valid":
             stamp_base64 = item.get("stamp_base64")
             tx_hash = item.get("tx_hash")
             
@@ -124,7 +124,10 @@ def parse_json_array_convert_base64_to_file_and_upload(json_string, aws_s3_bucke
                     
                     with io.BytesIO(imgdata) as file_obj:
                         try:
-                            s3.upload_fileobj(file_obj, aws_s3_bucketname, f"{aws_s3_image_dir}{filename}")
+                            if f"{aws_s3_image_dir}{filename}" not in s3_objects:
+                                print("new file found", filename)
+                                upload_file_to_s3(file_obj, aws_s3_bucketname, f"{aws_s3_image_dir}{filename}", s3_client, diskless=True)
+                            #s3.upload_fileobj(file_obj, aws_s3_bucketname, f"{aws_s3_image_dir}{filename}")
                             # print(f"Processed filename: {filename}") # Debug Output
                             item["stamp_url"] = f"https://stampchain.io/stamps/{filename}"
                             valid_json_components.append(item)
@@ -151,7 +154,16 @@ def process_messages(messages):
 
             if description.lower().find("stamp:") != -1:
                 stamp_search = description[description.lower().find("stamp:") + 6:]
-                stamp_base64 = stamp_search.strip() if len(stamp_search) > 1 else None
+                if ";" in stamp_search:
+                    stamp_mimetype, stamp_base64 = stamp_search.split(";", 1)
+                    stamp_base64 = stamp_base64.strip() if len(stamp_base64) > 1 else None
+                else:
+                    stamp_mimetype = ""
+                    stamp_base64 = stamp_search.strip() if len(stamp_search) > 1 else None
+
+#            if description.lower().find("stamp:") != -1:
+#                stamp_search = description[description.lower().find("stamp:") + 6:]
+#                stamp_base64 = stamp_search.strip() if len(stamp_search) > 1 else None
                 bindings = json.loads(bindings)
                 asset = bindings["asset"]
                 if not any(item["bindings"]["asset"] == asset for item in output_list) and is_base64_image(stamp_base64):
@@ -163,6 +175,7 @@ def process_messages(messages):
                         "block_index": bindings["block_index"],
                         "status": bindings["status"],
                         "tx_index": bindings["tx_index"],
+                        "stamp_mimetype": stamp_mimetype,
                         "stamp_base64": stamp_base64
                     }
                     output_list.append(message)
@@ -198,7 +211,7 @@ for i in range(0, len(blockrange), 249):
 # Sort the combined_list by message_index
 combined_list = sorted(combined_list, key=lambda k: k['message_index'])
 
-# Deduplicate the list by "asset" key
+# Deduplicate the list by "asset" key - only the first asset with the same name is valid
 unique_assets = {}
 unique_list = []
 
@@ -208,14 +221,24 @@ for message in combined_list:
         unique_assets[asset] = True
         unique_list.append(message)
 
-# Assign new "stamp" key-value pair to the dictionary and flatten
+# Flatten the dictionary
 for i, message in enumerate(unique_list):
-    message["stamp"] = i
     bindings = message.pop("bindings")
     message.update(bindings)
 
+
+if aws_secret_access_key != "" and aws_access_key_id != "" and aws_s3_bucketname != "":
+    # Get existing s3 files
+    s3_objects = get_s3_objects(aws_s3_bucketname, s3_client)
+
 json_string = json.dumps(unique_list, indent=4)
 final_array_with_url = parse_json_array_convert_base64_to_file_and_upload(json_string, aws_s3_bucketname, aws_s3_image_dir)
+
+# Assign new "stamp" key-value pair to the dictionary
+for i, message in enumerate(final_array_with_url):
+    message["stamp"] = i
+
+
 
 # Join the list items as a JSON array string
 final_array_with_url_string = '[' + ', '.join(json.dumps(item) for item in final_array_with_url) + ']'
@@ -225,15 +248,6 @@ with open(json_output, 'w') as f:
     f.write(final_array_with_url_string)
 
 
-if aws_secret_access_key != "" and aws_access_key_id != "":
-# pending check for existing file list, we will not upload if it exists
-    s3_objects = get_s3_objects(aws_s3_bucketname, s3_client)
-    # s3_key should be == to stamps/txid.png
-    #print(s3_objects)
-    #if s3_key not in s3_objects:
-    #    print(f'Uploading {local_file_path} to {s3_key}')
-    #    upload_file_to_s3(local_file_path, bucket_name, s3_key, s3_client)
-
 # upload json_output file to root dir of s3 bucket
 if aws_s3_bucketname != "" and aws_cloudfront_distribution_id != "":
     upload_file_to_s3(json_output,aws_s3_bucketname,json_output,s3_client)
@@ -242,7 +256,7 @@ if aws_s3_bucketname != "" and aws_cloudfront_distribution_id != "":
     stamp_status_data_file_obj = io.BytesIO(json.dumps(stamp_status_data).encode())
     upload_file_to_s3(stamp_status_data_file_obj, aws_s3_bucketname, f"{stamp_status}", s3_client, diskless=True)
 
-    # can purge local file upon successful upload
-    # os.remove(json_output)
+    # invalidate cache for stamp_status and json_output
     invalidate_paths = ["/" + json_output, "/" + stamp_status]
     invalidate_response = invalidate_s3_files(invalidate_paths, aws_cloudfront_distribution_id)
+#    print(invalidate_response) # Debug Output
